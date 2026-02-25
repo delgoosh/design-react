@@ -42,6 +42,13 @@ export default {
     resendCode:       "ارسال مجدد کد",
     back:             "بازگشت",
     disclaimer:       "با ادامه دادن، با شرایط استفاده و سیاست حریم خصوصی دلگوش موافقت می‌کنید.",
+    disclaimerPrefix: "با ادامه دادن، با ",
+    termsLink:        "شرایط استفاده",
+    disclaimerAnd:    " و ",
+    privacyLink:      "سیاست حریم خصوصی",
+    disclaimerSuffix: " دلگوش موافقت می‌کنید.",
+    invalidEmail:   "لطفاً یک آدرس ایمیل معتبر وارد کنید",
+    resendIn:       "ارسال مجدد در",
     therapistDisclaimer: "دسترسی به پنل درمانگر منوط به تأیید مدارک توسط تیم دلگوش است.",
   },
   // ── Common actions ───────────────────────────────────────
