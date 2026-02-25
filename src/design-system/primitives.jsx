@@ -2,6 +2,7 @@
 // PRIMITIVES — shared UI atoms consumed by every screen.
 // All components use useLang() for dir/fonts.
 // ─────────────────────────────────────────────────────────────
+import { useRef } from "react";
 import { useLang } from "./i18n/LanguageContext.jsx";
 import { Ic }     from "./icons.jsx";
 import { COLORS, FONTS, RADIUS, SHADOW } from "./tokens.js";
@@ -310,5 +311,217 @@ export const SessionCard = ({ patientName, initials, topic, time, date, hoursUnt
   );
 };
 
+
+// ── Checkbox ──────────────────────────────────────────────────
+// Simple toggle checkbox: checked square with white check mark
+export const Checkbox = ({ checked, onChange, label, disabled, style }) => {
+  const { dir } = useLang();
+  return (
+    <label style={{
+      display: "flex", alignItems: "center", gap: 8,
+      cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1,
+      direction: dir, ...style,
+    }} onClick={(e) => { if (!disabled) { e.preventDefault(); onChange?.(!checked); } }}>
+      <span style={{
+        width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+        border: `1.5px solid ${checked ? COLORS.primary : COLORS.sand}`,
+        background: checked ? COLORS.primary : "white",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all 0.15s",
+      }}>
+        {checked && <Ic n="check" s={13} c="white" />}
+      </span>
+      {label && <span style={{ fontSize: 13, color: COLORS.textDark }}>{label}</span>}
+    </label>
+  );
+};
+
+// ── RadioGroup ───────────────────────────────────────────────
+// options: [{ value, label }], direction: "vertical" | "horizontal"
+export const RadioGroup = ({ options = [], value, onChange, direction = "vertical", style }) => {
+  const { dir } = useLang();
+  return (
+    <div style={{
+      display: "flex",
+      flexDirection: direction === "horizontal" ? (dir === "rtl" ? "row-reverse" : "row") : "column",
+      gap: direction === "horizontal" ? 16 : 10,
+      ...style,
+    }}>
+      {options.map((opt) => (
+        <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", direction: dir }}
+          onClick={(e) => { e.preventDefault(); onChange?.(opt.value); }}>
+          <span style={{
+            width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+            border: `2px solid ${value === opt.value ? COLORS.primary : COLORS.sand}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}>
+            {value === opt.value && (
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: COLORS.primary }} />
+            )}
+          </span>
+          <span style={{ fontSize: 13, color: COLORS.textDark }}>{opt.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+};
+
+// ── Select ───────────────────────────────────────────────────
+// Styled native <select> with chevron
+export const Select = ({ options = [], value, onChange, placeholder, style }) => {
+  const { dir } = useLang();
+  return (
+    <div style={{ position: "relative", direction: dir, ...style }}>
+      <select
+        value={value || ""}
+        onChange={(e) => onChange?.(e.target.value)}
+        style={{
+          width: "100%", appearance: "none", WebkitAppearance: "none",
+          padding: "10px 36px 10px 14px", fontSize: 13,
+          borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
+          background: "white", color: value ? COLORS.textDark : COLORS.textLight,
+          fontFamily: "inherit", cursor: "pointer",
+          direction: dir,
+          paddingInlineEnd: 36, paddingInlineStart: 14,
+        }}
+      >
+        {placeholder && <option value="" disabled>{placeholder}</option>}
+        {options.map((opt) => (
+          <option key={typeof opt === "string" ? opt : opt.value} value={typeof opt === "string" ? opt : opt.value}>
+            {typeof opt === "string" ? opt : opt.label}
+          </option>
+        ))}
+      </select>
+      <span style={{
+        position: "absolute", top: "50%", transform: "translateY(-50%)",
+        ...(dir === "rtl" ? { left: 12 } : { right: 12 }),
+        pointerEvents: "none",
+      }}>
+        <Ic n="chev" s={14} c={COLORS.textLight} />
+      </span>
+    </div>
+  );
+};
+
+// ── Textarea ─────────────────────────────────────────────────
+export const Textarea = ({ value, onChange, placeholder, rows = 3, style }) => {
+  const { dir } = useLang();
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange?.(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      style={{
+        width: "100%", boxSizing: "border-box",
+        padding: "10px 14px", fontSize: 13,
+        borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
+        background: "white", color: COLORS.textDark,
+        fontFamily: "inherit", resize: "vertical",
+        direction: dir, ...style,
+      }}
+    />
+  );
+};
+
+// ── AvatarUpload ─────────────────────────────────────────────
+// Clickable avatar with camera overlay + hidden file input
+export const AvatarUpload = ({ src, onFileSelect, size = 96, style }) => {
+  const ref = useRef(null);
+  return (
+    <div
+      onClick={() => ref.current?.click()}
+      style={{
+        position: "relative", width: size, height: size, borderRadius: "50%",
+        cursor: "pointer", overflow: "hidden",
+        background: src ? "transparent" : `linear-gradient(135deg, ${COLORS.primaryGhost}, ${COLORS.accentGhost})`,
+        border: `2.5px solid ${COLORS.cream}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        ...style,
+      }}
+    >
+      {src ? (
+        <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <Ic n="user" s={Math.round(size * 0.4)} c={COLORS.textLight} />
+      )}
+      {/* Camera overlay */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "rgba(0,0,0,0.25)", display: "flex",
+        alignItems: "center", justifyContent: "center",
+        opacity: 0, transition: "opacity 0.18s",
+      }} onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; }}
+         onMouseLeave={(e) => { e.currentTarget.style.opacity = 0; }}>
+        <Ic n="camera" s={Math.round(size * 0.26)} c="white" />
+      </div>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const url = URL.createObjectURL(file);
+            onFileSelect?.(url, file);
+          }
+        }}
+      />
+    </div>
+  );
+};
+
+// ── StepIndicator ────────────────────────────────────────────
+// Numbered circles connected by lines, with optional labels
+export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) => {
+  const { dir } = useLang();
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      direction: dir, ...style,
+    }}>
+      {Array.from({ length: steps }).map((_, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center" }}>
+            {/* Connector line (before circle, skip first) */}
+            {i > 0 && (
+              <div style={{
+                width: 32, height: 2,
+                background: done ? COLORS.primary : COLORS.sand,
+                transition: "background 0.2s",
+              }} />
+            )}
+            {/* Circle + label */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: done ? COLORS.primary : active ? "white" : "white",
+                border: `2px solid ${done || active ? COLORS.primary : COLORS.sand}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, fontWeight: 700,
+                color: done ? "white" : active ? COLORS.primary : COLORS.textLight,
+                transition: "all 0.2s",
+              }}>
+                {done ? <Ic n="check" s={14} c="white" /> : i + 1}
+              </div>
+              {labels[i] && (
+                <span style={{
+                  fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+                  color: done || active ? COLORS.primary : COLORS.textLight,
+                }}>
+                  {labels[i]}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

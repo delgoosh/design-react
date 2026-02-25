@@ -41,4 +41,11 @@ export {
   BottomNavItem,
   StatCard,
   SessionCard,
+  // Form primitives (onboarding)
+  Checkbox,
+  RadioGroup,
+  Select,
+  Textarea,
+  AvatarUpload,
+  StepIndicator,
 } from "./primitives.jsx";
