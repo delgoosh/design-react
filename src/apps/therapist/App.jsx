@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 
-import { Auth }      from "./screens/Auth.jsx";
+// Auth is shared — handles both apps
+import Auth from "@shared/components/Auth.jsx";
 import { Dashboard } from "./screens/Dashboard.jsx";
 import { Patients }  from "./screens/Patients.jsx";
 import { Resources } from "./screens/Resources.jsx";
@@ -42,7 +43,12 @@ const SCREENS = {
 export const TherapistApp = () => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
-  const [tab, setTab] = useState("home");
+  const [authed, setAuthed] = useState(false);
+  const [tab,    setTab]    = useState("home");
+
+  if (!authed) {
+    return <Auth mode="therapist" onLogin={() => setAuthed(true)} />;
+  }
 
   const navItems       = NAV_ITEMS(t);
   const mobileNavItems = navItems.filter((i) => MOBILE_NAV_IDS.includes(i.id));
