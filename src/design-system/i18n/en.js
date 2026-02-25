@@ -40,6 +40,13 @@ export default {
     resendCode:       "Resend code",
     back:             "Go back",
     disclaimer:       "By continuing, you agree to Delgoosh's Terms of Service and Privacy Policy.",
+    disclaimerPrefix: "By continuing, you agree to Delgoosh's ",
+    termsLink:        "Terms of Service",
+    disclaimerAnd:    " and ",
+    privacyLink:      "Privacy Policy",
+    disclaimerSuffix: ".",
+    invalidEmail:   "Please enter a valid email address",
+    resendIn:       "Resend in",
     therapistDisclaimer: "Access to the therapist panel requires credential verification by the Delgoosh team.",
   },
   action: {

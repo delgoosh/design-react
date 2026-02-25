@@ -165,21 +165,21 @@ export const BottomSheet = ({ onClose, children }) => {
 
 // ── LanguageToggle ────────────────────────────────────────────
 // Compact two-option pill toggle for auth screen + settings
-export const LanguageToggle = ({ style }) => {
+export const LanguageToggle = ({ dark, style }) => {
   const { lang, setLang } = useLang();
   return (
     <div style={{
-      display: "inline-flex", background: "rgba(255,255,255,0.1)",
-      borderRadius: RADIUS.pill, padding: 3, gap: 2, ...style,
+      display: "inline-flex", background: dark ? "rgba(255,255,255,0.1)" : COLORS.cream,
+      borderRadius: RADIUS.pill, padding: 3, gap: 2, direction: "ltr", ...style,
     }}>
-      {[["fa","فارسی"],["en","English"]].map(([l, label]) => (
+      {[["en","English"],["fa","فارسی"]].map(([l, label]) => (
         <button
           key={l}
           onClick={() => setLang(l)}
           style={{
             padding: "6px 14px", borderRadius: RADIUS.pill, border: "none", cursor: "pointer",
             background: lang === l ? "white" : "transparent",
-            color: lang === l ? COLORS.primary : "rgba(255,255,255,0.55)",
+            color: lang === l ? COLORS.primary : dark ? "rgba(255,255,255,0.55)" : COLORS.textLight,
             fontFamily: l === "fa" ? FONTS.fa.body : FONTS.en.body,
             fontSize: 12, fontWeight: 700,
             transition: "all 0.18s",

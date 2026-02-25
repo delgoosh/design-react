@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 
-import { Auth }        from "./screens/Auth.jsx";
+// Auth is shared — handles both apps
+import Auth from "@shared/components/Auth.jsx";
 import { Dashboard }   from "./screens/Dashboard.jsx";
 import { Therapists }  from "./screens/Therapists.jsx";
 import { Tickets }     from "./screens/Tickets.jsx";
@@ -31,10 +32,17 @@ const SCREENS = {
   profile:     Profile,
 };
 
-export const PatientApp = () => {
+// TODO(backend-integration): remove skipAuth prop — auth state should come
+// from a real session/JWT, not a prop passed by the demo router.
+export const PatientApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
+  const [authed, setAuthed] = useState(skipAuth || false);
   const [tab, setTab] = useState("home");
+
+  if (!authed) {
+    return <Auth mode="patient" onLogin={() => setAuthed(true)} />;
+  }
 
   const navItems   = NAV_ITEMS(t);
   const Screen     = SCREENS[tab] || Dashboard;

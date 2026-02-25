@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "patient",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--mode", "patient", "--host", "127.0.0.1"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "therapist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--mode", "therapist", "--host", "127.0.0.1"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}
