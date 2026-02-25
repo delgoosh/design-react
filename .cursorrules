@@ -1,0 +1,87 @@
+# Delgoosh — Cursor AI Rules
+# These rules apply to every file in this project.
+
+## Project overview
+Delgoosh is a Persian/English online psychotherapy platform.
+It has two apps: patient and therapist, sharing one design system.
+
+## Architecture rules
+
+### Imports
+- ALWAYS import UI primitives from `@ds` (the design system barrel)
+- NEVER import from deep paths like `@ds/primitives` or `../../design-system/tokens`
+- Asset imports use `@assets/...`
+- Screen-to-screen imports are FORBIDDEN — screens are isolated
+
+### Language & direction
+- NEVER hardcode `direction: 'rtl'` or any font-family directly in screen files
+- ALWAYS get `dir` from `useLang()` and pass it to the root element
+- ALWAYS inject CSS with `<style>{makeGlobalCSS(lang)}</style>` at the top of each screen
+- Use `layoutFor(dir)` helpers for all directional margins, paddings, and borders
+- NEVER use `marginLeft/Right` directly — use `L.marginStart(n)` / `L.marginEnd(n)`
+
+### Strings & numbers
+- NEVER hardcode UI strings in JSX — always use `t('key.subkey')` from `useLang()`
+- NEVER render raw numbers in UI — always use `n(number)` for locale-aware numerals
+- Add new strings to BOTH `fa.js` and `en.js` simultaneously
+
+### Responsive layout
+- Use `useIsDesktop()` to branch between desktop (sidebar) and mobile (bottom-nav) layouts
+- Desktop threshold: 900px
+- Desktop: fixed 230px sidebar, `.ds-sidebar` + `.ds-main` classes
+- Mobile: bottom nav with max 5 items, `.ds-bottom-nav` class
+
+### Styling
+- Inline styles only — no CSS modules, no Tailwind, no styled-components
+- Use `COLORS.*` tokens for all color values
+- Use `RADIUS.*` for border-radius
+- Use `SHADOW.*` for box-shadow
+- Use `SPACING.*` for consistent spacing values
+- Animation: use class names like `.ds-anim-fadeUp`, `.ds-stagger` from the global CSS
+
+### Component patterns
+- `Button` variant prop: 'primary' | 'accent' | 'ghost' | 'ghost2' | 'danger' | 'warn'
+- `Button` size prop: 'md' | 'sm' | 'xs'
+- `Tag` color prop: 'primary' | 'success' | 'warn' | 'danger' | 'accent' | 'neutral'
+- `Card` variant prop: 'default' | 'sm' | 'ghost' | 'tinted'
+- `Modal` — always include onClose, title, children; wide=true for 680px max
+- Session cards use `.ds-session-card` class (teal gradient, already defined in CSS)
+
+### File size discipline
+- Each screen file should stay under 300 lines
+- If a screen grows beyond 300 lines, extract sub-components into a co-located folder:
+  e.g. `screens/Dashboard/` with `SessionCard.jsx`, `CancelModal.jsx`, etc.
+- The screen's `index.jsx` then imports from its own sub-components
+
+### What NOT to do
+- Do NOT use localStorage or sessionStorage in screen components (use Context)
+- Do NOT add new icons to icons.jsx without documenting in this file
+- Do NOT use emoji as UI elements — use Ic components
+- Do NOT use `<form>` tags — use button onClick handlers
+- Do NOT use any CSS framework (Tailwind, Bootstrap, etc.)
+
+## Current screen status
+### Patient
+- [ ] Auth
+- [ ] Dashboard
+- [ ] Therapists
+- [ ] Tickets
+- [ ] Assignments
+- [ ] Profile
+
+### Therapist
+- [ ] Auth
+- [ ] Dashboard
+- [ ] Patients
+- [ ] Resources
+- [ ] Calendar
+- [ ] Earnings
+- [ ] Profile
+- [ ] Support
+
+## How to build a screen (workflow for each conversation)
+1. Open a new Claude/Cursor conversation
+2. Paste `src/design-system/index.js` as the first message
+3. Paste the target screen stub file
+4. Say: "Build this screen using only imports from @ds"
+5. The screen should compile without touching any other file
