@@ -3,7 +3,7 @@
 // Renders the correct screen based on `tab` state.
 // Desktop: sidebar nav | Mobile: bottom nav
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 
@@ -38,6 +38,19 @@ const SCREENS = {
   profile:     Profile,
 };
 
+// ── Chat persistence helpers ───────────────────────────────
+const STORAGE_KEY = "delgoosh_chat_sessions";
+const ACTIVE_KEY  = "delgoosh_active_chat";
+
+const loadSessions = () => {
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : []; }
+  catch { return []; }
+};
+const loadActiveId = () => {
+  try { return localStorage.getItem(ACTIVE_KEY) || null; }
+  catch { return null; }
+};
+
 // TODO(backend-integration): remove skipAuth prop — auth state should come
 // from a real session/JWT, not a prop passed by the demo router.
 export const PatientApp = ({ skipAuth }) => {
@@ -48,11 +61,82 @@ export const PatientApp = ({ skipAuth }) => {
   const [chatContext, setChatContext] = useState(null);
   const [chatCredit, setChatCredit] = useState(20);   // lifted so Chat + Credits share it
 
+  // ── Chat session state (persisted to localStorage) ─────
+  const [chatSessions, setChatSessions] = useState(loadSessions);
+  const [activeChatId, setActiveChatId] = useState(loadActiveId);
+
+  // Sync to localStorage
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatSessions)); } catch { /* quota */ }
+  }, [chatSessions]);
+  useEffect(() => {
+    try { if (activeChatId) localStorage.setItem(ACTIVE_KEY, activeChatId); } catch { /* */ }
+  }, [activeChatId]);
+
+  // ── Chat management functions ──────────────────────────
+  const createChat = useCallback((ctx = null) => {
+    const id = `chat_${Date.now()}`;
+    const session = { id, title: "", messages: [], createdAt: Date.now() };
+    setChatSessions((prev) => [session, ...prev]);
+    setActiveChatId(id);
+    if (ctx) setChatContext(ctx);
+    return id;
+  }, []);
+
+  const updateChatMessages = useCallback((chatId, messages) => {
+    setChatSessions((prev) => prev.map((s) =>
+      s.id === chatId ? { ...s, messages } : s
+    ));
+  }, []);
+
+  const updateChatTitle = useCallback((chatId, title) => {
+    setChatSessions((prev) => prev.map((s) =>
+      s.id === chatId && !s.title ? { ...s, title } : s
+    ));
+  }, []);
+
+  const deleteChat = useCallback((chatId) => {
+    setChatSessions((prev) => {
+      const remaining = prev.filter((s) => s.id !== chatId);
+      // If we deleted the active chat, switch to the most recent one
+      if (chatId === activeChatId) {
+        setActiveChatId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      return remaining;
+    });
+  }, [activeChatId]);
+
+  const switchChat = useCallback((chatId) => {
+    setActiveChatId(chatId);
+    setChatContext(null);
+  }, []);
+
+  const newChat = useCallback(() => {
+    createChat();
+    setChatContext(null);
+  }, [createChat]);
+
   // Navigate helper — allows screens to change tab with optional context
-  const navigate = (tabId, ctx = null) => {
+  const navigate = useCallback((tabId, ctx = null) => {
+    if (tabId === "chat" && ctx?.mood) {
+      // Mood check-in from Dashboard: always create a new chat
+      createChat(ctx);
+    } else if (tabId === "chat" && !activeChatId) {
+      // Going to chat with no active session: create one
+      createChat();
+    }
     if (ctx) setChatContext(ctx);
     setTab(tabId);
-  };
+  }, [activeChatId, createChat]);
+
+  // Nav click handler — for sidebar/bottom nav
+  const handleNavClick = useCallback((itemId) => {
+    if (itemId === "chat" && !activeChatId) {
+      createChat();
+    }
+    setChatContext(null);
+    setTab(itemId);
+  }, [activeChatId, createChat]);
 
   if (!authed) {
     return <Auth mode="patient" onLogin={() => setAuthed(true)} />;
@@ -61,6 +145,17 @@ export const PatientApp = ({ skipAuth }) => {
   const navItems       = NAV_ITEMS(t);
   const mobileNavItems = navItems.filter((i) => MOBILE_NAV_IDS.includes(i.id));
   const Screen         = SCREENS[tab] || Dashboard;
+
+  // Chat-specific props passed to screens
+  const chatProps = {
+    activeChatId,
+    chatSessions,
+    onUpdateMessages: updateChatMessages,
+    onUpdateTitle:    updateChatTitle,
+    onDeleteChat:     deleteChat,
+    onSwitchChat:     switchChat,
+    onNewChat:        newChat,
+  };
 
   return (
     <>
@@ -83,17 +178,18 @@ export const PatientApp = ({ skipAuth }) => {
                 label={item.label}
                 active={tab === item.id}
                 badge={item.badge}
-                onClick={() => { setChatContext(null); setTab(item.id); }}
+                onClick={() => handleNavClick(item.id)}
               />
             ))}
           </aside>
           <main className="ds-main">
             <Screen
-              key={tab === "chat" ? `chat-${chatContext?.mood || "default"}` : tab}
+              key={tab === "chat" ? `chat-${activeChatId || "empty"}` : tab}
               navigate={navigate}
               chatContext={tab === "chat" ? chatContext : undefined}
               chatCredit={chatCredit}
               setChatCredit={setChatCredit}
+              {...chatProps}
             />
           </main>
         </div>
@@ -101,11 +197,12 @@ export const PatientApp = ({ skipAuth }) => {
         // ── Mobile layout ───────────────────────────────────
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "var(--ds-bg)", position: "relative" }}>
           <Screen
-            key={tab === "chat" ? `chat-${chatContext?.mood || "default"}` : tab}
+            key={tab === "chat" ? `chat-${activeChatId || "empty"}` : tab}
             navigate={navigate}
             chatContext={tab === "chat" ? chatContext : undefined}
             chatCredit={chatCredit}
             setChatCredit={setChatCredit}
+            {...chatProps}
           />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (
@@ -115,7 +212,7 @@ export const PatientApp = ({ skipAuth }) => {
                 label={item.label}
                 active={tab === item.id}
                 badge={!!item.badge}
-                onClick={() => { setChatContext(null); setTab(item.id); }}
+                onClick={() => handleNavClick(item.id)}
               />
             ))}
           </nav>

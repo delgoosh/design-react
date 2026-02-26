@@ -74,11 +74,21 @@ export const makeGlobalCSS = (lang) => {
     @keyframes ds-float   { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
     @keyframes ds-pulse   { 0%,100%{opacity:1;} 50%{opacity:0.45;} }
     @keyframes ds-spin    { to { transform: rotate(360deg); } }
+    @keyframes ds-credit-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(232,160,112,0.45); }
+      50%      { box-shadow: 0 0 0 6px rgba(232,160,112,0); }
+    }
+    @keyframes ds-credit-pulse-danger {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(198,96,96,0.45); }
+      50%      { box-shadow: 0 0 0 6px rgba(198,96,96,0); }
+    }
 
     .ds-anim-fadeUp { animation: ds-fadeUp 0.4s ease both; }
     .ds-anim-fadeIn { animation: ds-fadeIn 0.4s ease both; }
     .ds-anim-float  { animation: ds-float  3s ease-in-out infinite; }
     .ds-anim-pulse  { animation: ds-pulse  1.6s ease infinite; }
+    .ds-credit-pulse       { animation: ds-credit-pulse 2s ease infinite; }
+    .ds-credit-pulse-danger { animation: ds-credit-pulse-danger 1.5s ease infinite; }
 
     /* Staggered children — add .ds-stagger on parent */
     .ds-stagger > *:nth-child(1) { animation-delay: 0.05s; }

@@ -488,6 +488,14 @@ export default {
     followUp6:      "I understand. Remember, it's okay to feel this way. Would you like to try a brief mindfulness exercise?",
     followUp7:      "That's a great observation. How does your body feel when you think about this?",
     followUp8:      "Thank you for opening up. Would you like to discuss this with your therapist in your next session?",
+    creditLabel:       "Credit",
+    creditEmpty:       "Chat credit is empty \u2014 top up to continue",
+    creditTopUp:       "Top up",
+    historyTitle:      "Chat history",
+    newChat:           "New chat",
+    deleteChat:        "Delete chat",
+    deleteChatConfirm: "Delete this conversation?",
+    noHistory:         "No previous chats",
   },
 
   tag: {
