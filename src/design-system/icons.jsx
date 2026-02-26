@@ -6,7 +6,7 @@
 //   c = stroke/fill color (default "currentColor")
 // ─────────────────────────────────────────────────────────────
 
-export const Ic = ({ n, s = 18, c = "currentColor" }) => {
+export const Ic = ({ n, s = 18, c = "currentColor", style }) => {
   const icons = {
     home:      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
     users:     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -52,5 +52,6 @@ export const Ic = ({ n, s = 18, c = "currentColor" }) => {
     send:      <svg width={s} height={s} viewBox="0 0 24 24" fill={c} stroke="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>,
     bot:       <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="11"/><circle cx="8" cy="16" r="1" fill={c}/><circle cx="16" cy="16" r="1" fill={c}/></svg>,
   };
-  return icons[n] || null;
+  const icon = icons[n] || null;
+  return style ? <span style={{ display: "inline-flex", ...style }}>{icon}</span> : icon;
 };

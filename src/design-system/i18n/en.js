@@ -373,6 +373,10 @@ export default {
     deleteAccount:  "Delete account & data",
     downloadData:   "Download my data",
     sessionHistory: "Session history",
+    personalInfo:   "Personal information",
+    helpSupport:    "Help & Support",
+    logout:         "Log out",
+    about:          "About Delgoosh",
   },
   support: {
     title:          "Support",
