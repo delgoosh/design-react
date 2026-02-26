@@ -14,18 +14,31 @@ import { StepAiChat }            from "./StepAiChat.jsx";
 import { StepPatientMatch }      from "./StepPatientMatch.jsx";
 import { StepPayment }           from "./StepPayment.jsx";
 import { StepTherapistSchedule } from "./StepTherapistSchedule.jsx";
+import { MOCK_THERAPISTS }       from "./mockData.js";
 
-export const OnboardingShell = ({ role, email, onComplete }) => {
+export const OnboardingShell = ({ role, email, initialStep = 0, onComplete }) => {
   const { lang, dir, t } = useLang();
   const isD = useIsDesktop();
-  const [step, setStep]           = useState(0);
   const isPatient = role === "patient";
   const TOTAL_STEPS = isPatient ? 5 : 4;
 
+  // DEMO SHORTCUT: clamp initialStep to valid range
+  const clampedStart = Math.min(Math.max(initialStep, 0), TOTAL_STEPS - 1);
+  const [step, setStep] = useState(clampedStart);
+
   // Shared form data — preserved across steps
-  const [profile, setProfile]         = useState({ firstName: "", lastName: "", avatar: null, email: email || "", phone: "" });
-  const [answers, setAnswers]         = useState({});
-  const [selectedTherapist, setSelectedTherapist] = useState(null);
+  // When jumping ahead, pre-fill with dummy data so earlier steps don't break
+  const [profile, setProfile] = useState(
+    clampedStart > 0
+      ? { firstName: "Test", lastName: "User", avatar: null, email: email || "", phone: "+1234567890" }
+      : { firstName: "", lastName: "", avatar: null, email: email || "", phone: "" }
+  );
+  const [answers, setAnswers] = useState(
+    clampedStart > 1 ? { q_concerns: ["anxiety"], q_therapy_before: "never", q_mood: "3" } : {}
+  );
+  const [selectedTherapist, setSelectedTherapist] = useState(
+    clampedStart >= 4 && isPatient ? MOCK_THERAPISTS[0] : null
+  );
 
   const stepLabels = isPatient
     ? [
