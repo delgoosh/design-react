@@ -437,6 +437,13 @@ export default {
     myTickets:      "My tickets",
     viewChat:       "View conversation",
     sendMessage:    "Send message",
+    allTickets:     "All",
+    subjectPlaceholder:     "Brief summary of your issue",
+    descriptionPlaceholder: "Describe your issue in detail...",
+    submitTicket:   "Submit ticket",
+    noTickets:      "No tickets yet",
+    supportTeam:    "Support team",
+    you:            "You",
     priorities: {
       normal:   "Normal",
       important:"Important",

@@ -451,6 +451,13 @@ export default {
     myTickets:      "تیکت‌های من",
     viewChat:       "مشاهده گفتگو",
     sendMessage:    "ارسال پیام",
+    allTickets:     "همه",
+    subjectPlaceholder:     "خلاصه‌ای از مشکل شما",
+    descriptionPlaceholder: "مشکل خود را با جزئیات شرح دهید...",
+    submitTicket:   "ثبت تیکت",
+    noTickets:      "هنوز تیکتی ثبت نشده",
+    supportTeam:    "تیم پشتیبانی",
+    you:            "شما",
     priorities: {
       normal:   "عادی",
       important:"مهم",
