@@ -86,7 +86,20 @@ export const Dashboard = ({ navigate }) => {
             {t("dashboard.today")} — {new Date().toLocaleDateString(isFa ? "fa-IR" : "en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
-        <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Profile avatar — mobile only (not in bottom nav) */}
+          {!isD && (
+            <button
+              onClick={() => navigate?.("profile")}
+              style={{
+                width: 42, height: 42, borderRadius: "50%", border: "none",
+                background: "none", cursor: "pointer", padding: 0,
+              }}
+            >
+              <Avatar initials="SM" size={42} />
+            </button>
+          )}
+          <div style={{ position: "relative" }}>
           <button
             onClick={() => setShowNotifs(!showNotifs)}
             style={{
@@ -131,6 +144,7 @@ export const Dashboard = ({ navigate }) => {
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -225,12 +239,12 @@ export const Dashboard = ({ navigate }) => {
         </p>
         <div style={{ display: "flex", gap: isD ? 10 : 8, overflowX: "auto" }}>
           {[
-            { icon: "users",   label: t("dashboard.qBookSession"), color: COLORS.primary },
-            { icon: "book",    label: t("dashboard.qAssignments"), color: COLORS.accent },
-            { icon: "heart",   label: t("dashboard.qResources"),   color: COLORS.success },
-            { icon: "support", label: t("dashboard.qSupport"),     color: "var(--ds-text-mid)" },
+            { icon: "users",   label: t("dashboard.qBookSession"), color: COLORS.primary,        tab: "therapists" },
+            { icon: "book",    label: t("dashboard.qAssignments"), color: COLORS.accent,         tab: "assignments" },
+            { icon: "heart",   label: t("dashboard.qResources"),   color: COLORS.success,        tab: null },
+            { icon: "support", label: t("dashboard.qSupport"),     color: "var(--ds-text-mid)",  tab: "support" },
           ].map((a, i) => (
-            <button key={i} style={{
+            <button key={i} onClick={() => a.tab && navigate?.(a.tab)} style={{
               display: "flex", flexDirection: "column", alignItems: "center", gap: isD ? 6 : 4,
               padding: isD ? "14px 16px" : "10px 8px", borderRadius: RADIUS.sm, border: "1px solid var(--ds-card-border)",
               background: "var(--ds-card-bg)", cursor: "pointer", minWidth: isD ? 80 : 0, flex: 1,
@@ -398,7 +412,7 @@ export const Dashboard = ({ navigate }) => {
               <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>{isFa ? r.titleFa : r.title}</p>
               <p style={{ fontSize: 11, color: "var(--ds-text-light)" }}>{isFa ? r.typeFa : r.type}</p>
             </div>
-            <Ic n="chev" s={14} c={COLORS.textLight} />
+            <Ic n="chev" s={14} c={COLORS.textLight} style={{ transform: dir === "rtl" ? undefined : "rotate(180deg)" }} />
           </div>
         ))}
       </Card>

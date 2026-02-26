@@ -78,6 +78,111 @@ export const MOCK_THERAPISTS = [
   },
 ];
 
+// ── Mock next session generator ──────────────────────────────
+// TODO(backend-integration): replace with real session data from API
+export const MOCK_NEXT_SESSION = (therapist) => ({
+  therapistId:   therapist.id,
+  therapistName: therapist.name,
+  topic: { en: "Anxiety management", fa: "مدیریت اضطراب" },
+  date:  { en: "Tue, Feb 25", fa: "سه‌شنبه ۶ اسفند" },
+  time:  { en: "10:00 AM", fa: "۱۰:۰۰ صبح" },
+});
+
+// ── Mock assignments ─────────────────────────────────────────
+// TODO(backend-integration): replace with real assignment data from API
+export const MOCK_ASSIGNMENTS = [
+  {
+    id: "a1",
+    type: "questionnaire",
+    title:       { en: "Pre-session questionnaire", fa: "پرسشنامه پیش از جلسه" },
+    description: { en: "Complete before your March 3 session", fa: "قبل از جلسه ۳ اسفند تکمیل شود" },
+    therapistId: "t1",
+    dueIn:       { en: "2 days", fa: "۲ روز دیگر" },
+    dueUrgency:  "urgent",
+    progress:    0,
+    status:      "active",
+  },
+  {
+    id: "a2",
+    type: "journal",
+    title:       { en: "Weekly reflection journal", fa: "دفترچه بازتاب هفتگی" },
+    description: { en: "Write your feelings and experiences this week", fa: "احساسات و تجربیات این هفته را بنویسید" },
+    therapistId: "t1",
+    dueIn:       { en: "5 days", fa: "۵ روز دیگر" },
+    dueUrgency:  "soon",
+    progress:    0,
+    status:      "active",
+  },
+  {
+    id: "a3",
+    type: "reading",
+    title:       { en: "\"The Body Keeps the Score\" — Ch. 1–3", fa: "کتاب «بدن حساب می‌کنه» — فصل ۱–۳" },
+    description: { en: "Share your reflection notes after reading", fa: "پس از مطالعه یادداشت بازتاب خود را بنویسید" },
+    therapistId: "t1",
+    dueIn:       { en: "2 weeks", fa: "۲ هفته دیگر" },
+    dueUrgency:  "soon",
+    progress:    0,
+    status:      "active",
+  },
+  {
+    id: "a4",
+    type: "exercise",
+    title:       { en: "30-min walk (3× per week)", fa: "پیاده‌روی ۳۰ دقیقه (۳ بار در هفته)" },
+    description: { en: "Physical activity for mood regulation", fa: "فعالیت بدنی برای تنظیم خلق" },
+    therapistId: "t1",
+    dueIn:       { en: "Ongoing", fa: "مستمر" },
+    dueUrgency:  "ongoing",
+    progress:    66,
+    status:      "active",
+  },
+  {
+    id: "a5",
+    type: "breathing",
+    title:       { en: "Box breathing — 5 min daily", fa: "تنفس جعبه‌ای — ۵ دقیقه روزانه" },
+    description: { en: "Inhale 4s · Hold 4s · Exhale 4s · Hold 4s", fa: "دم ۴ث · نگه ۴ث · بازدم ۴ث · نگه ۴ث" },
+    therapistId: "t1",
+    dueIn:       { en: "Ongoing", fa: "مستمر" },
+    dueUrgency:  "ongoing",
+    progress:    80,
+    status:      "active",
+  },
+  {
+    id: "a6",
+    type: "mindfulness",
+    title:       { en: "Gratitude journal — 3 items daily", fa: "دفترچه سپاس‌گزاری — ۳ مورد روزانه" },
+    description: { en: "Write three things you're grateful for each night", fa: "هر شب سه چیزی که سپاس‌گزارشان هستید بنویسید" },
+    therapistId: "t1",
+    dueIn:       { en: "Ongoing", fa: "مستمر" },
+    dueUrgency:  "ongoing",
+    progress:    40,
+    status:      "active",
+  },
+  {
+    id: "a7",
+    type: "questionnaire",
+    title:       { en: "Intake assessment", fa: "ارزیابی اولیه" },
+    description: { en: "Initial assessment questionnaire", fa: "پرسشنامه ارزیابی اولیه" },
+    therapistId: "t1",
+    dueIn:       null,
+    dueUrgency:  null,
+    progress:    100,
+    status:      "completed",
+    completedAt: { en: "Feb 20", fa: "۱ اسفند" },
+  },
+  {
+    id: "a8",
+    type: "reading",
+    title:       { en: "\"Feeling Good\" — Introduction", fa: "کتاب «حس خوب» — مقدمه" },
+    description: { en: "Introductory chapter on CBT basics", fa: "فصل مقدماتی درباره مبانی CBT" },
+    therapistId: "t1",
+    dueIn:       null,
+    dueUrgency:  null,
+    progress:    100,
+    status:      "completed",
+    completedAt: { en: "Feb 18", fa: "۲۹ بهمن" },
+  },
+];
+
 // ── Schedule time slots ──────────────────────────────────────
 // 8:00–18:50 with 70-minute intervals (50-min session + 20-min buffer)
 export const SCHEDULE_SLOTS = [
