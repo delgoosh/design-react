@@ -8,7 +8,7 @@ import { COLORS, RADIUS } from "@ds";
 import { Ic } from "@ds";
 import { MOCK_THERAPISTS } from "./mockData.js";
 
-export const StepPatientMatch = ({ onComplete, onBack }) => {
+export const StepPatientMatch = ({ onBookSession, onComplete, onBack }) => {
   const { lang, t } = useLang();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -62,7 +62,7 @@ export const StepPatientMatch = ({ onComplete, onBack }) => {
           </div>
 
           {/* Book button */}
-          <Button variant="primary" size="sm" onClick={onComplete} style={{ width: "100%" }}>
+          <Button variant="primary" size="sm" onClick={() => onBookSession?.(th)} style={{ width: "100%" }}>
             {t("onboarding.bookSession")}
           </Button>
         </Card>

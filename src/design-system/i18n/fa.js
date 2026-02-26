@@ -451,6 +451,13 @@ export default {
     myTickets:      "تیکت‌های من",
     viewChat:       "مشاهده گفتگو",
     sendMessage:    "ارسال پیام",
+    allTickets:     "همه",
+    subjectPlaceholder:     "خلاصه‌ای از مشکل شما",
+    descriptionPlaceholder: "مشکل خود را با جزئیات شرح دهید...",
+    submitTicket:   "ثبت تیکت",
+    noTickets:      "هنوز تیکتی ثبت نشده",
+    supportTeam:    "تیم پشتیبانی",
+    you:            "شما",
     priorities: {
       normal:   "عادی",
       important:"مهم",
@@ -490,7 +497,14 @@ export default {
     firstNamePh:        "نام خود را وارد کنید",
     lastNamePh:         "نام خانوادگی خود را وارد کنید",
     photoHint:          "برای آپلود عکس بزنید",
-    fieldsRequired:     "پر کردن هر دو فیلد نام الزامی است",
+    email:              "آدرس ایمیل",
+    emailPh:            "you@example.com",
+    phone:              "شماره تلفن",
+    phonePh:            "شماره تلفن خود را وارد کنید",
+    verifyNewEmail:     "تأیید ایمیل جدید",
+    otpSentTo:          "یک کد ۶ رقمی ارسال شد به:",
+    emailReverted:      "ایمیل به حالت اصلی بازگردانده شد",
+    fieldsRequired:     "لطفاً تمام فیلدهای الزامی را پر کنید",
 
     // Step 2 — Questionnaire
     questionnaireTitle:  "چند سؤال",
@@ -569,6 +583,15 @@ export default {
     nextAvailable:      "اولین نوبت خالی",
     bookSession:        "رزرو جلسه",
     goToDashboard:      "ورود به داشبورد",
+
+    // Step 5 — Payment
+    paymentTitle:       "خرید اعتبار",
+    paymentSub:         "برای رزرو اولین جلسه، اعتبار تهیه کنید",
+    confirmBooking:     "تأیید رزرو",
+    bookingSuccess:     "جلسه با موفقیت رزرو شد!",
+    bookingFailed:      "این نوبت توسط بیمار دیگری رزرو شد. در حال بازگشت به لیست درمانگران…",
+    selectedSlot:       "جلسه انتخاب‌شده",
+    needCredit:         "برای رزرو حداقل ۱ اعتبار نیاز دارید",
 
     // Step 4b — Therapist Schedule
     scheduleTitle:      "هفته ایده‌آل خود را تنظیم کنید",
