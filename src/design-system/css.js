@@ -131,7 +131,7 @@ export const makeGlobalCSS = (lang) => {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: var(--ds-card-bg); border-top: 1px solid var(--ds-cream);
       display: flex;
-      flex-direction: ${dir === "rtl" ? "row" : "row-reverse"};
+      flex-direction: row;
       padding: 5px 0 16px;
       box-shadow: var(--ds-shadow-nav);
       z-index: 100;
