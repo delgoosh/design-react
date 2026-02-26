@@ -45,12 +45,24 @@ export const DemoRouter = () => {
   const isTherapist = email.toLowerCase().includes("therapist");
   const role = isTherapist ? "therapist" : "patient";
 
+  // DEMO SHORTCUT: emails containing "np2"–"np5" jump to that onboarding step
+  // e.g. "np4@test.com" → start at step 4 (therapist matches)
+  const initialStep = (() => {
+    const e = email?.toLowerCase() || "";
+    if (e.includes("np5")) return 4; // 0-indexed: step 5 = index 4
+    if (e.includes("np4")) return 3;
+    if (e.includes("np3")) return 2;
+    if (e.includes("np2")) return 1;
+    return 0;
+  })();
+
   // Step 2: Logged in but not onboarded → Onboarding
   if (!onboarded && !skipOnboarding) {
     return (
       <OnboardingShell
         role={role}
         email={email}
+        initialStep={initialStep}
         onComplete={() => setOnboarded(true)}
       />
     );
