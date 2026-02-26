@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   useLang, makeGlobalCSS, useIsDesktop, layoutFor,
   COLORS, FONTS, RADIUS, SHADOW,
@@ -24,8 +24,11 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── OTP Input — 6 boxes with auto-advance ────────────────────────────────────
-function OtpInput({ value, onChange }) {
+function OtpInput({ value, onChange, dark }) {
   const refs = Array.from({ length: 6 }, () => useRef(null))
+
+  // Auto-focus first input on mount
+  useEffect(() => { refs[0].current?.focus() }, [])
 
   const handleKey = (i, e) => {
     if (e.key === 'Backspace') {
@@ -71,9 +74,9 @@ function OtpInput({ value, onChange }) {
           style={{
             width: 44, height: 52, textAlign: 'center',
             fontSize: 20, fontWeight: 700, borderRadius: RADIUS.md,
-            border: `1.5px solid ${value[i] ? COLORS.primary : COLORS.sand}`,
-            background: value[i] ? COLORS.primaryGhost : 'white',
-            color: COLORS.textDark,
+            border: `1.5px solid ${value[i] ? COLORS.primary : (dark ? 'rgba(255,255,255,0.2)' : COLORS.sand)}`,
+            background: value[i] ? (dark ? 'rgba(59,175,160,0.2)' : COLORS.primaryGhost) : (dark ? 'rgba(255,255,255,0.1)' : 'white'),
+            color: dark ? 'white' : COLORS.textDark,
             boxShadow: value[i] ? `0 0 0 3px rgba(59,175,160,0.13)` : 'none',
             transition: 'all 0.15s',
             outline: 'none',
@@ -85,7 +88,7 @@ function OtpInput({ value, onChange }) {
 }
 
 // ── OAuth button ──────────────────────────────────────────────────────────────
-function OAuthButton({ icon, label, onClick }) {
+function OAuthButton({ icon, label, onClick, dark }) {
   const [hover, setHover] = useState(false)
   return (
     <button
@@ -95,10 +98,16 @@ function OAuthButton({ icon, label, onClick }) {
       style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
         gap: 10, padding: '11px 20px', borderRadius: RADIUS.md,
-        border: `1.5px solid ${hover ? COLORS.sand : 'rgba(184,216,212,0.5)'}`,
-        background: hover ? COLORS.cream : 'white',
+        border: `1.5px solid ${dark
+          ? (hover ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)')
+          : (hover ? COLORS.sand : 'rgba(184,216,212,0.5)')}`,
+        background: dark
+          ? (hover ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)')
+          : (hover ? COLORS.cream : 'white'),
         cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
-        fontWeight: 600, color: COLORS.textDark, transition: 'all 0.18s',
+        fontWeight: 600,
+        color: dark ? 'white' : COLORS.textDark,
+        transition: 'all 0.18s',
       }}
     >
       {icon}
@@ -117,8 +126,8 @@ const GoogleLogo = () => (
   </svg>
 )
 
-const AppleLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={COLORS.textDark}>
+const AppleLogo = ({ dark }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={dark ? 'white' : COLORS.textDark}>
     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
   </svg>
 )
@@ -133,23 +142,72 @@ export default function Auth({ mode = 'patient', onLogin }) {
   const [step,  setStep]  = useState('email')
   const [email, setEmail] = useState('')
   const [otp,   setOtp]   = useState('')
+  const [emailError, setEmailError] = useState('')
+  const [countdown, setCountdown] = useState(0)
+
+  // Detect system dark mode
+  const [sysDark, setSysDark] = useState(
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const h = (e) => setSysDark(e.matches)
+    mq.addEventListener('change', h)
+    return () => mq.removeEventListener('change', h)
+  }, [])
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (countdown <= 0) return
+    const id = setTimeout(() => setCountdown(c => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [countdown])
+
+  const formatTime = (s) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
+  // Dark when mobile OR desktop + system dark mode
+  const isDark = !isD || sysDark
 
   const isTherapist = mode === 'therapist'
 
   const emailPlaceholder = isTherapist ? t('auth.emailTherapist') : t('auth.emailPlaceholder')
 
+  const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
+  // TODO(backend-integration): call POST /auth/send-otp with email,
+  // handle rate-limiting and server-side validation errors.
+  // The countdown is client-side only — the backend must enforce its own cooldown.
   const handleSendCode = () => {
-    if (!email.includes('@')) return
+    if (!validateEmail(email)) {
+      setEmailError(t('auth.invalidEmail'))
+      return
+    }
+    setEmailError('')
     setStep('otp')
+    setCountdown(120)
   }
 
+  // TODO(backend-integration): call POST /auth/verify-otp with { email, otp }.
+  // The backend returns a JWT/session and the user's role (patient | therapist).
+  // NEVER trust the client to determine the user role — that is a security risk.
   const handleVerify = () => {
     if (otp.length < 6) return
-    onLogin()
+    onLogin(email)
+  }
+
+  // TODO(backend-integration): call POST /auth/resend-otp, respect server rate-limits.
+  const handleResend = () => {
+    if (countdown > 0) return
+    setOtp('')
+    setCountdown(120)
   }
 
   // ── Branding panel (desktop only) ──────────────────────────────────────────
-  const BrandPanel = () => (
+  const brandPanel = (
     <div style={{
       width: 420, flexShrink: 0,
       background: `linear-gradient(160deg, ${COLORS.bgDark} 0%, #1e3d38 60%, #2A5C52 100%)`,
@@ -164,14 +222,9 @@ export default function Auth({ mode = 'patient', onLogin }) {
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
           <Logo size={42} />
-          <div>
-            <p className="ds-heading" style={{ fontSize: 26, color: 'white', lineHeight: 1 }}>
-              {t('app.name')}
-            </p>
-            <p style={{ fontSize: 10, color: COLORS.accent, fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
-              {isTherapist ? t('app.therapistPanel').toUpperCase() : t('app.patientPanel').toUpperCase()}
-            </p>
-          </div>
+          <p className="ds-heading" style={{ fontSize: 26, color: 'white', lineHeight: 1 }}>
+            {t('app.name')}
+          </p>
         </div>
 
         <h2 className="ds-heading" style={{ fontSize: 34, color: 'white', lineHeight: 1.25, marginBottom: 16 }}>
@@ -205,33 +258,31 @@ export default function Auth({ mode = 'patient', onLogin }) {
   )
 
   // ── Form panel ─────────────────────────────────────────────────────────────
-  const FormPanel = () => (
+  const formPanel = (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
       justifyContent: 'center', alignItems: 'center',
       padding: isD ? '48px 56px' : '32px 24px',
-      background: isD ? 'white' : 'transparent',
+      background: isDark ? (isD ? COLORS.bgDark : 'transparent') : 'white',
     }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
 
         {/* Language toggle — always first */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
-          <LanguageToggle style={{
-            background: isD ? COLORS.cream : 'rgba(255,255,255,0.12)',
-          }} />
+          <LanguageToggle dark={isDark} />
         </div>
 
         {step === 'email' ? (
           <>
             {/* Title */}
             <h1 className="ds-heading" style={{
-              fontSize: 28, color: isD ? COLORS.textDark : 'white',
+              fontSize: 28, color: isDark ? 'white' : COLORS.textDark,
               marginBottom: 6, textAlign: L.text,
             }}>
               {t('auth.welcome')}
             </h1>
             <p style={{
-              fontSize: 13, color: isD ? COLORS.textLight : 'rgba(255,255,255,0.55)',
+              fontSize: 13, color: isDark ? 'rgba(255,255,255,0.55)' : COLORS.textLight,
               marginBottom: 28, textAlign: L.text,
             }}>
               {t('auth.welcomeSub')}
@@ -239,32 +290,36 @@ export default function Auth({ mode = 'patient', onLogin }) {
 
             {/* OAuth */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              <OAuthButton icon={<GoogleLogo />} label={t('auth.loginGoogle')} onClick={onLogin} />
-              <OAuthButton icon={<AppleLogo />}  label={t('auth.loginApple')}  onClick={onLogin} />
+              <OAuthButton dark={isDark} icon={<GoogleLogo />} label={t('auth.loginGoogle')} onClick={onLogin} />
+              <OAuthButton dark={isDark} icon={<AppleLogo dark={isDark} />}  label={t('auth.loginApple')}  onClick={onLogin} />
             </div>
 
             {/* Divider */}
-            <div className="ds-divider" style={{ marginBottom: 20 }}>
+            <div className="ds-divider" style={{ marginBottom: 20, color: isDark ? 'rgba(255,255,255,0.35)' : undefined }}>
               {t('auth.orDivider')}
             </div>
 
             {/* Email input */}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ color: isD ? COLORS.textMid : 'rgba(255,255,255,0.6)' }}>
+              <label style={{ color: isDark ? 'rgba(255,255,255,0.6)' : COLORS.textMid }}>
                 {t('auth.emailLabel')}
               </label>
               <input
                 type="email"
                 placeholder={emailPlaceholder}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError('') }}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
                 style={{
-                  background: isD ? 'white' : 'rgba(255,255,255,0.1)',
-                  color: isD ? COLORS.textDark : 'white',
-                  borderColor: isD ? COLORS.sand : 'rgba(255,255,255,0.2)',
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                  color: isDark ? 'white' : COLORS.textDark,
+                  borderColor: emailError ? COLORS.danger : (isDark ? 'rgba(255,255,255,0.2)' : COLORS.sand),
+                  direction: 'ltr', textAlign: 'left',
                 }}
               />
+              {emailError && (
+                <p style={{ fontSize: 11, color: COLORS.danger, marginTop: 4 }}>{emailError}</p>
+              )}
             </div>
 
             <Button
@@ -278,20 +333,28 @@ export default function Auth({ mode = 'patient', onLogin }) {
             {/* Therapist disclaimer */}
             {isTherapist && (
               <div style={{
-                background: isD ? COLORS.warnGhost : 'rgba(212,144,10,0.15)',
+                background: isDark ? 'rgba(212,144,10,0.15)' : COLORS.warnGhost,
                 borderRadius: RADIUS.md, padding: '10px 12px',
                 display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 16,
               }}>
                 <Ic n="alert" s={14} c={COLORS.warn} style={{ flexShrink: 0, marginTop: 1 }} />
-                <p style={{ fontSize: 11, color: isD ? COLORS.warn : '#F5C842', lineHeight: 1.6 }}>
+                <p style={{ fontSize: 11, color: isDark ? '#F5C842' : COLORS.warn, lineHeight: 1.6 }}>
                   {t('auth.therapistDisclaimer')}
                 </p>
               </div>
             )}
 
             {/* Disclaimer */}
-            <p style={{ fontSize: 11, color: isD ? COLORS.textLight : 'rgba(255,255,255,0.35)', textAlign: 'center', lineHeight: 1.7 }}>
-              {t('auth.disclaimer')}
+            <p style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.35)' : COLORS.textLight, textAlign: 'center', lineHeight: 1.7 }}>
+              {t('auth.disclaimerPrefix')}
+              <a href="/terms.html" target="_blank" style={{ color: isDark ? COLORS.primaryLight : COLORS.primary, textDecoration: 'underline' }}>
+                {t('auth.termsLink')}
+              </a>
+              {t('auth.disclaimerAnd')}
+              <a href="/privacy.html" target="_blank" style={{ color: isDark ? COLORS.primaryLight : COLORS.primary, textDecoration: 'underline' }}>
+                {t('auth.privacyLink')}
+              </a>
+              {t('auth.disclaimerSuffix')}
             </p>
           </>
         ) : (
@@ -302,14 +365,14 @@ export default function Auth({ mode = 'patient', onLogin }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: isD ? COLORS.textMid : 'rgba(255,255,255,0.55)',
+                color: isDark ? 'rgba(255,255,255,0.55)' : COLORS.textMid,
                 fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
                 marginBottom: 24, padding: 0,
                 flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
               }}
             >
               <div style={{ transform: dir === 'rtl' ? 'scaleX(-1)' : 'scaleX(1)' }}>
-                <Ic n="chev" s={14} c={isD ? COLORS.textMid : 'rgba(255,255,255,0.55)'} />
+                <Ic n="chev" s={14} c={isDark ? 'rgba(255,255,255,0.55)' : COLORS.textMid} />
               </div>
               {t('auth.back')}
             </button>
@@ -318,26 +381,26 @@ export default function Auth({ mode = 'patient', onLogin }) {
             <div style={{ textAlign: 'center', marginBottom: 28 }}>
               <div style={{
                 width: 52, height: 52, borderRadius: '50%',
-                background: isD ? COLORS.primaryGhost : 'rgba(59,175,160,0.2)',
+                background: isDark ? 'rgba(59,175,160,0.2)' : COLORS.primaryGhost,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 14px',
               }}>
                 <Ic n="mail" s={22} c={COLORS.primary} />
               </div>
-              <h2 className="ds-heading" style={{ fontSize: 24, color: isD ? COLORS.textDark : 'white', marginBottom: 6 }}>
+              <h2 className="ds-heading" style={{ fontSize: 24, color: isDark ? 'white' : COLORS.textDark, marginBottom: 6 }}>
                 {t('auth.verifyTitle')}
               </h2>
-              <p style={{ fontSize: 12, color: isD ? COLORS.textLight : 'rgba(255,255,255,0.5)' }}>
+              <p style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.5)' : COLORS.textLight }}>
                 {t('auth.verifySub')}
               </p>
-              <p style={{ fontSize: 13, fontWeight: 700, color: isD ? COLORS.primary : COLORS.primaryLight, marginTop: 4 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: isDark ? COLORS.primaryLight : COLORS.primary, marginTop: 4 }}>
                 {email}
               </p>
             </div>
 
             {/* OTP boxes */}
             <div style={{ marginBottom: 20 }}>
-              <OtpInput value={otp} onChange={setOtp} />
+              <OtpInput value={otp} onChange={setOtp} dark={isDark} />
             </div>
 
             <Button
@@ -351,16 +414,33 @@ export default function Auth({ mode = 'patient', onLogin }) {
               {t('auth.verifyAction')}
             </Button>
 
+            {/* Countdown timer */}
+            {countdown > 0 && (
+              <div style={{
+                textAlign: 'center', marginBottom: 10,
+                fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                color: isDark ? COLORS.primaryLight : COLORS.primary,
+              }}>
+                {formatTime(countdown)}
+              </div>
+            )}
+
             <button
-              onClick={() => setOtp('')}
+              onClick={handleResend}
               style={{
                 width: '100%', textAlign: 'center', background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-                color: isD ? COLORS.textLight : 'rgba(255,255,255,0.45)',
-                fontWeight: 600,
+                cursor: countdown > 0 ? 'default' : 'pointer',
+                fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+                color: countdown > 0
+                  ? (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(61,107,100,0.35)')
+                  : (isDark ? COLORS.primaryLight : COLORS.primary),
+                transition: 'color 0.2s',
               }}
             >
-              {t('auth.resendCode')}
+              {countdown > 0
+                ? `${t('auth.resendIn')} ${formatTime(countdown)}`
+                : t('auth.resendCode')
+              }
             </button>
           </>
         )}
@@ -377,11 +457,11 @@ export default function Auth({ mode = 'patient', onLogin }) {
         // Desktop: branding panel + form panel side by side
         <div style={{
           minHeight: '100vh', display: 'flex',
-          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           direction: dir,
         }}>
-          <BrandPanel />
-          <FormPanel />
+          {brandPanel}
+          {formPanel}
         </div>
       ) : (
         // Mobile: form floats over dark gradient background
@@ -395,14 +475,9 @@ export default function Auth({ mode = 'patient', onLogin }) {
           {/* Logo on mobile */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
             <Logo size={38} />
-            <div>
-              <p className="ds-heading" style={{ fontSize: 24, color: 'white', lineHeight: 1 }}>
-                {t('app.name')}
-              </p>
-              <p style={{ fontSize: 9, color: COLORS.accent, fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>
-                {isTherapist ? t('app.therapistPanel').toUpperCase() : t('app.patientPanel').toUpperCase()}
-              </p>
-            </div>
+            <p className="ds-heading" style={{ fontSize: 24, color: 'white', lineHeight: 1 }}>
+              {t('app.name')}
+            </p>
           </div>
 
           {/* Glass card */}
@@ -414,7 +489,7 @@ export default function Auth({ mode = 'patient', onLogin }) {
             border: '1px solid rgba(255,255,255,0.1)',
             padding: '28px 22px',
           }}>
-            <FormPanel />
+            {formPanel}
           </div>
         </div>
       )}

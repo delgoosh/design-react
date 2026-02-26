@@ -40,10 +40,12 @@ const SCREENS = {
   support:   Support,
 };
 
-export const TherapistApp = () => {
+// TODO(backend-integration): remove skipAuth prop — auth state should come
+// from a real session/JWT, not a prop passed by the demo router.
+export const TherapistApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(skipAuth || false);
   const [tab,    setTab]    = useState("home");
 
   if (!authed) {
