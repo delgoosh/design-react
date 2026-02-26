@@ -4,6 +4,12 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: "127.0.0.1",
+  },
+  build: {
+    target: "esnext", // needed for top-level await in main.jsx
+  },
   resolve: {
     alias: {
       // @ds  → src/design-system
