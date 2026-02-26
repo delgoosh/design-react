@@ -78,6 +78,16 @@ export const MOCK_THERAPISTS = [
   },
 ];
 
+// ── Mock next session generator ──────────────────────────────
+// TODO(backend-integration): replace with real session data from API
+export const MOCK_NEXT_SESSION = (therapist) => ({
+  therapistId:   therapist.id,
+  therapistName: therapist.name,
+  topic: { en: "Anxiety management", fa: "مدیریت اضطراب" },
+  date:  { en: "Tue, Feb 25", fa: "سه‌شنبه ۶ اسفند" },
+  time:  { en: "10:00 AM", fa: "۱۰:۰۰ صبح" },
+});
+
 // ── Schedule time slots ──────────────────────────────────────
 // 8:00–18:50 with 70-minute intervals (50-min session + 20-min buffer)
 export const SCHEDULE_SLOTS = [

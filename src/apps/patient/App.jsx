@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
+import { MOCK_THERAPISTS, MOCK_NEXT_SESSION } from "@shared/components/onboarding/mockData.js";
 
 // Auth is shared — handles both apps
 import Auth from "@shared/components/Auth.jsx";
@@ -60,6 +61,21 @@ export const PatientApp = ({ skipAuth }) => {
   const [tab, setTab] = useState("home");
   const [chatContext, setChatContext] = useState(null);
   const [chatCredit, setChatCredit] = useState(20);   // lifted so Chat + Credits share it
+
+  // ── Therapist state ────────────────────────────────────
+  const [chosenTherapist, setChosenTherapist] = useState(MOCK_THERAPISTS[0]);
+  const [suggestedTherapists, setSuggestedTherapists] = useState(MOCK_THERAPISTS.slice(1));
+  const [nextSession, setNextSession] = useState(() => MOCK_NEXT_SESSION(MOCK_THERAPISTS[0]));
+
+  const handleChooseTherapist = useCallback((therapist) => {
+    setChosenTherapist(therapist);
+    setSuggestedTherapists(MOCK_THERAPISTS.filter((th) => th.id !== therapist.id));
+    setNextSession(null);
+  }, []);
+
+  const handleBookSession = useCallback((therapist) => {
+    setNextSession(MOCK_NEXT_SESSION(therapist));
+  }, []);
 
   // ── Chat session state (persisted to localStorage) ─────
   const [chatSessions, setChatSessions] = useState(loadSessions);
@@ -157,6 +173,15 @@ export const PatientApp = ({ skipAuth }) => {
     onNewChat:        newChat,
   };
 
+  // Therapist-specific props
+  const therapistProps = {
+    chosenTherapist,
+    suggestedTherapists,
+    nextSession,
+    onChooseTherapist: handleChooseTherapist,
+    onBookSession:     handleBookSession,
+  };
+
   return (
     <>
       <style>{makeGlobalCSS(lang)}</style>
@@ -190,6 +215,7 @@ export const PatientApp = ({ skipAuth }) => {
               chatCredit={chatCredit}
               setChatCredit={setChatCredit}
               {...chatProps}
+              {...therapistProps}
             />
           </main>
         </div>
@@ -203,6 +229,7 @@ export const PatientApp = ({ skipAuth }) => {
             chatCredit={chatCredit}
             setChatCredit={setChatCredit}
             {...chatProps}
+            {...therapistProps}
           />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (
