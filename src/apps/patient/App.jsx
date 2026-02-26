@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
-import { MOCK_THERAPISTS, MOCK_NEXT_SESSION } from "@shared/components/onboarding/mockData.js";
+import { MOCK_THERAPISTS, MOCK_NEXT_SESSION, MOCK_ASSIGNMENTS } from "@shared/components/onboarding/mockData.js";
 
 // Auth is shared — handles both apps
 import Auth from "@shared/components/Auth.jsx";
@@ -17,13 +17,13 @@ import { Credits }     from "./screens/Credits.jsx";
 import { Assignments } from "./screens/Assignments.jsx";
 import { Profile }     from "./screens/Profile.jsx";
 
-const NAV_ITEMS = (t) => [
-  { id: "home",        icon: "home",    label: t("nav.home"),        badge: null  },
-  { id: "therapists",  icon: "users",   label: t("nav.therapists"),  badge: null  },
-  { id: "chat",        icon: "bot",     label: t("nav.chat"),        badge: null  },
-  { id: "credits",     icon: "wallet",  label: t("nav.credits"),     badge: null  },
-  { id: "assignments", icon: "book",    label: t("nav.assignments"), badge: "2"   },
-  { id: "profile",     icon: "user",    label: t("nav.profile"),     badge: null  },
+const NAV_ITEMS = (t, assignmentBadge) => [
+  { id: "home",        icon: "home",    label: t("nav.home"),        badge: null             },
+  { id: "therapists",  icon: "users",   label: t("nav.therapists"),  badge: null             },
+  { id: "chat",        icon: "bot",     label: t("nav.chat"),        badge: null             },
+  { id: "credits",     icon: "wallet",  label: t("nav.credits"),     badge: null             },
+  { id: "assignments", icon: "book",    label: t("nav.assignments"), badge: assignmentBadge  },
+  { id: "profile",     icon: "user",    label: t("nav.profile"),     badge: null             },
 ];
 
 // Bottom nav shows only 5 items on mobile (most important)
@@ -75,6 +75,15 @@ export const PatientApp = ({ skipAuth }) => {
 
   const handleBookSession = useCallback((therapist) => {
     setNextSession(MOCK_NEXT_SESSION(therapist));
+  }, []);
+
+  // ── Assignment state ─────────────────────────────────────
+  const [assignments, setAssignments] = useState(MOCK_ASSIGNMENTS);
+
+  const handleCompleteAssignment = useCallback((id) => {
+    setAssignments((prev) => prev.map((a) =>
+      a.id === id ? { ...a, status: "completed", progress: 100, completedAt: { en: "Today", fa: "امروز" } } : a
+    ));
   }, []);
 
   // ── Chat session state (persisted to localStorage) ─────
@@ -158,7 +167,8 @@ export const PatientApp = ({ skipAuth }) => {
     return <Auth mode="patient" onLogin={() => setAuthed(true)} />;
   }
 
-  const navItems       = NAV_ITEMS(t);
+  const activeAssignmentCount = assignments.filter((a) => a.status === "active").length;
+  const navItems       = NAV_ITEMS(t, activeAssignmentCount > 0 ? String(activeAssignmentCount) : null);
   const mobileNavItems = navItems.filter((i) => MOBILE_NAV_IDS.includes(i.id));
   const Screen         = SCREENS[tab] || Dashboard;
 
@@ -171,6 +181,12 @@ export const PatientApp = ({ skipAuth }) => {
     onDeleteChat:     deleteChat,
     onSwitchChat:     switchChat,
     onNewChat:        newChat,
+  };
+
+  // Assignment-specific props
+  const assignmentProps = {
+    assignments,
+    onCompleteAssignment: handleCompleteAssignment,
   };
 
   // Therapist-specific props
@@ -216,6 +232,7 @@ export const PatientApp = ({ skipAuth }) => {
               setChatCredit={setChatCredit}
               {...chatProps}
               {...therapistProps}
+              {...assignmentProps}
             />
           </main>
         </div>
@@ -230,6 +247,7 @@ export const PatientApp = ({ skipAuth }) => {
             setChatCredit={setChatCredit}
             {...chatProps}
             {...therapistProps}
+            {...assignmentProps}
           />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (
