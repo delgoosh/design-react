@@ -16,6 +16,7 @@ import { AiChat }      from "./screens/AiChat.jsx";
 import { Credits }     from "./screens/Credits.jsx";
 import { Assignments } from "./screens/Assignments.jsx";
 import { Profile }     from "./screens/Profile.jsx";
+import { Support }     from "./screens/Support.jsx";
 
 const NAV_ITEMS = (t, assignmentBadge) => [
   { id: "home",        icon: "home",    label: t("nav.home"),        badge: null             },
@@ -37,6 +38,7 @@ const SCREENS = {
   credits:     Credits,
   assignments: Assignments,
   profile:     Profile,
+  support:     Support,
 };
 
 // ── Chat persistence helpers ───────────────────────────────

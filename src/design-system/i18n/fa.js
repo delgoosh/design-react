@@ -386,6 +386,10 @@ export default {
     deleteAccount:  "حذف حساب و داده‌ها",
     downloadData:   "دریافت داده‌هایم",
     sessionHistory: "تاریخچه جلسات",
+    personalInfo:   "اطلاعات شخصی",
+    helpSupport:    "راهنما و پشتیبانی",
+    logout:         "خروج از حساب",
+    about:          "درباره دلگوش",
   },
   // ── Support ──────────────────────────────────────────────
   support: {
