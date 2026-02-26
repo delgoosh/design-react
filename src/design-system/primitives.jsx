@@ -477,33 +477,38 @@ export const AvatarUpload = ({ src, onFileSelect, size = 96, style }) => {
 // Numbered circles connected by lines, with optional labels
 export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) => {
   const { dir } = useLang();
+  const hasLabels = labels.length > 0;
   return (
     <div style={{
-      display: "flex", alignItems: "center", justifyContent: "center",
+      display: "flex", alignItems: hasLabels ? "flex-start" : "center", justifyContent: "center",
       direction: dir, ...style,
     }}>
       {Array.from({ length: steps }).map((_, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={i} style={{ display: "flex", alignItems: "center" }}>
+          <div key={i} style={{
+            display: "flex", alignItems: "center",
+            flex: i > 0 ? 1 : undefined,
+          }}>
             {/* Connector line (before circle, skip first) */}
             {i > 0 && (
               <div style={{
-                width: 32, height: 2,
-                background: done ? COLORS.primary : COLORS.sand,
+                flex: 1, height: 2, minWidth: 16,
+                marginTop: hasLabels ? 14 : 0,
+                background: done ? COLORS.primary : "var(--ds-sand)",
                 transition: "background 0.2s",
               }} />
             )}
             {/* Circle + label */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: "50%",
+                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
                 background: done ? COLORS.primary : "var(--ds-card-bg)",
                 border: `2px solid ${done || active ? COLORS.primary : "var(--ds-sand)"}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 12, fontWeight: 700,
-                color: done ? "white" : active ? COLORS.primary : COLORS.textLight,
+                color: done ? "white" : active ? COLORS.primary : "var(--ds-text-light)",
                 transition: "all 0.2s",
               }}>
                 {done ? <Ic n="check" s={14} c="white" /> : i + 1}
@@ -511,7 +516,7 @@ export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) =>
               {labels[i] && (
                 <span style={{
                   fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
-                  color: done || active ? COLORS.primary : COLORS.textLight,
+                  color: done || active ? COLORS.primary : "var(--ds-text-light)",
                 }}>
                   {labels[i]}
                 </span>

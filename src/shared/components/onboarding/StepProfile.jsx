@@ -47,18 +47,18 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
   const inputStyle = {
     width: "100%", boxSizing: "border-box",
     padding: "10px 14px", fontSize: 13,
-    borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
-    background: "white", color: COLORS.textDark,
+    borderRadius: RADIUS.sm, border: "1.5px solid var(--ds-sand)",
+    background: "var(--ds-card-bg)", color: "var(--ds-text)",
     fontFamily: "inherit", direction: dir, outline: "none",
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.profileTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.profileSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.profileSub")}</p>
       </div>
 
       {/* Avatar */}
@@ -67,7 +67,7 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
         onFileSelect={(url) => updateField("avatar", url)}
         size={96}
       />
-      <p style={{ fontSize: 11, color: COLORS.textLight, marginTop: -16 }}>{t("onboarding.photoHint")}</p>
+      <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: -16 }}>{t("onboarding.photoHint")}</p>
 
       {/* OAuth import buttons */}
       <Card variant="sm" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -77,15 +77,15 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
 
       {/* Divider */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
-        <div style={{ flex: 1, height: 1, background: COLORS.sand }} />
-        <span style={{ fontSize: 12, color: COLORS.textLight }}>{t("onboarding.orEnterManually")}</span>
-        <div style={{ flex: 1, height: 1, background: COLORS.sand }} />
+        <div style={{ flex: 1, height: 1, background: "var(--ds-sand)" }} />
+        <span style={{ fontSize: 12, color: "var(--ds-text-light)" }}>{t("onboarding.orEnterManually")}</span>
+        <div style={{ flex: 1, height: 1, background: "var(--ds-sand)" }} />
       </div>
 
       {/* Name fields */}
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMid, marginBottom: 4, display: "block" }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text-mid)", marginBottom: 4, display: "block" }}>
             {t("onboarding.firstName")}
           </label>
           <input
@@ -97,7 +97,7 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
           />
         </div>
         <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMid, marginBottom: 4, display: "block" }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text-mid)", marginBottom: 4, display: "block" }}>
             {t("onboarding.lastName")}
           </label>
           <input
@@ -136,10 +136,10 @@ function OAuthImportButton({ icon, label, onClick }) {
       style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
         gap: 10, padding: "10px 20px", borderRadius: RADIUS.md,
-        border: `1.5px solid ${hover ? COLORS.sand : "rgba(184,216,212,0.5)"}`,
-        background: hover ? COLORS.cream : "white",
+        border: `1.5px solid ${hover ? "var(--ds-sand)" : "rgba(184,216,212,0.3)"}`,
+        background: hover ? "var(--ds-cream)" : "var(--ds-card-bg)",
         cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
-        color: COLORS.textDark, transition: "all 0.18s",
+        color: "var(--ds-text)", transition: "all 0.18s",
       }}
     >
       {icon}

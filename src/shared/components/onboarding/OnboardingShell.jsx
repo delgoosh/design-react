@@ -57,7 +57,7 @@ export const OnboardingShell = ({ role, email, onComplete }) => {
       <style>{makeGlobalCSS(lang)}</style>
       <div style={{
         minHeight: "100vh",
-        background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${COLORS.cream} 100%)`,
+        background: "linear-gradient(135deg, var(--ds-bg) 0%, var(--ds-cream) 100%)",
         direction: dir,
         display: "flex", flexDirection: "column",
       }}>
