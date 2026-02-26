@@ -33,6 +33,9 @@ export const DemoRouter = () => {
   // the backend (e.g. user.onboarded flag in session/JWT)
   const [onboarded, setOnboarded] = useState(false);
 
+  // DEMO SHORTCUT: emails containing "old" (e.g. "oldpatient@…") skip onboarding
+  const skipOnboarding = email?.toLowerCase().includes("old");
+
   // Step 1: Not logged in → Auth
   if (!email) {
     return <Auth onLogin={(e) => setEmail(e)} />;
@@ -43,7 +46,7 @@ export const DemoRouter = () => {
   const role = isTherapist ? "therapist" : "patient";
 
   // Step 2: Logged in but not onboarded → Onboarding
-  if (!onboarded) {
+  if (!onboarded && !skipOnboarding) {
     return (
       <OnboardingShell
         role={role}

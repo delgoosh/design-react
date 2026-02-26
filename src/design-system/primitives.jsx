@@ -33,7 +33,7 @@ export const Button = ({ variant = "primary", size = "md", children, style, ...p
     primary: { background: COLORS.primary,  color: "#fff", boxShadow: SHADOW.btn },
     accent:  { background: COLORS.accent,   color: "#fff", boxShadow: SHADOW.btnAccent },
     ghost:   { background: "transparent",   color: COLORS.primary, border: `1.5px solid ${COLORS.primary}` },
-    ghost2:  { background: "transparent",   color: COLORS.textMid, border: `1.5px solid ${COLORS.sand}` },
+    ghost2:  { background: "transparent",   color: "var(--ds-text-mid)", border: "1.5px solid var(--ds-sand)" },
     danger:  { background: COLORS.danger,   color: "#fff" },
     warn:    { background: COLORS.warn,     color: "#fff" },
     dark:    { background: COLORS.bgDark,   color: "#fff" },
@@ -49,17 +49,17 @@ export const Button = ({ variant = "primary", size = "md", children, style, ...p
 // variant: "default" | "sm" | "ghost" | "tinted"
 export const Card = ({ variant = "default", children, style, ...props }) => {
   const base = {
-    background: COLORS.white,
+    background: "var(--ds-card-bg)",
     borderRadius: variant === "sm" ? RADIUS.md : RADIUS.lg,
     padding: variant === "sm" ? "14px 16px" : 20,
-    border: `1px solid ${COLORS.cardBorder}`,
-    boxShadow: SHADOW.card,
+    border: "1px solid var(--ds-card-border)",
+    boxShadow: "var(--ds-shadow-card)",
   };
   const variants = {
     default: {},
     sm:      {},
-    ghost:   { background: "transparent", boxShadow: "none", border: `1.5px dashed ${COLORS.sand}` },
-    tinted:  { background: COLORS.cream,  boxShadow: "none", border: "none" },
+    ghost:   { background: "transparent", boxShadow: "none", border: "1.5px dashed var(--ds-sand)" },
+    tinted:  { background: "var(--ds-cream)",  boxShadow: "none", border: "none" },
   };
   return <div style={{ ...base, ...variants[variant], ...style }} {...props}>{children}</div>;
 };
@@ -93,7 +93,7 @@ export const Avatar = ({ initials = "?", src, size = 44, style }) => (
   <div style={{
     width: size, height: size, borderRadius: "50%",
     background: src ? "transparent" : `linear-gradient(135deg, ${COLORS.primaryGhost}, ${COLORS.accentGhost})`,
-    border: `2px solid ${COLORS.cream}`,
+    border: "2px solid var(--ds-cream)",
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: Math.round(size * 0.28), fontWeight: 700, color: COLORS.primary,
     overflow: "hidden", flexShrink: 0, ...style,
@@ -130,7 +130,7 @@ export const Modal = ({ onClose, title, children, wide = false }) => {
       onClick={onClose}
     >
       <div
-        style={{ background: "white", borderRadius: 22, padding: 28, width: "100%", maxWidth: wide ? 680 : 520, maxHeight: "90vh", overflowY: "auto", animation: "ds-fadeUp 0.25s ease" }}
+        style={{ background: "var(--ds-card-bg)", borderRadius: 22, padding: 28, width: "100%", maxWidth: wide ? 680 : 520, maxHeight: "90vh", overflowY: "auto", animation: "ds-fadeUp 0.25s ease" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -154,10 +154,10 @@ export const BottomSheet = ({ onClose, children }) => {
       onClick={onClose}
     >
       <div
-        style={{ background: "white", borderRadius: "22px 22px 0 0", padding: "24px 22px 36px", width: "100%", maxWidth: 600, margin: "0 auto", animation: "ds-fadeUp 0.25s ease", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ background: "var(--ds-card-bg)", borderRadius: "22px 22px 0 0", padding: "24px 22px 36px", width: "100%", maxWidth: 600, margin: "0 auto", animation: "ds-fadeUp 0.25s ease", maxHeight: "90vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 36, height: 4, background: COLORS.sand, borderRadius: 2, margin: "0 auto 22px" }} />
+        <div style={{ width: 36, height: 4, background: "var(--ds-sand)", borderRadius: 2, margin: "0 auto 22px" }} />
         {children}
       </div>
     </div>
@@ -179,7 +179,7 @@ export const LanguageToggle = ({ dark, style }) => {
           onClick={() => setLang(l)}
           style={{
             padding: "6px 14px", borderRadius: RADIUS.pill, border: "none", cursor: "pointer",
-            background: lang === l ? "white" : "transparent",
+            background: lang === l ? "var(--ds-card-bg)" : "transparent",
             color: lang === l ? COLORS.primary : dark ? "rgba(255,255,255,0.55)" : COLORS.textLight,
             fontFamily: l === "fa" ? FONTS.fa.body : FONTS.en.body,
             fontSize: 12, fontWeight: 700,
@@ -206,14 +206,14 @@ export const SidebarNavItem = ({ icon, label, active, badge, onClick }) => {
         cursor: "pointer", border: "none",
         background: active ? COLORS.primaryGhost : "none",
         fontFamily: "inherit", fontSize: 13, fontWeight: 600,
-        color: active ? COLORS.primary : COLORS.textMid,
+        color: active ? COLORS.primary : "var(--ds-text-mid)",
         transition: "all 0.18s",
         textAlign: dir === "rtl" ? "right" : "left",
         width: "calc(100% - 20px)",
         direction: dir,
       }}
     >
-      <Ic n={icon} s={17} c={active ? COLORS.primary : COLORS.textMid} />
+      <Ic n={icon} s={17} c={active ? COLORS.primary : "var(--ds-text-mid)"} />
       {label}
       {badge && (
         <span style={{
@@ -234,7 +234,7 @@ export const BottomNavItem = ({ icon, label, active, badge, onClick }) => (
     style={{
       flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
       gap: 2, padding: 5, cursor: "pointer", transition: "all 0.18s",
-      fontSize: 9, color: active ? COLORS.primary : COLORS.textLight,
+      fontSize: 9, color: active ? COLORS.primary : "var(--ds-text-light)",
       fontWeight: 600, border: "none", background: "none", fontFamily: "inherit",
     }}
   >
@@ -243,11 +243,11 @@ export const BottomNavItem = ({ icon, label, active, badge, onClick }) => (
       borderRadius: 7, background: active ? COLORS.primaryGhost : "transparent",
       position: "relative",
     }}>
-      <Ic n={icon} s={19} c={active ? COLORS.primary : COLORS.textLight} />
+      <Ic n={icon} s={19} c={active ? COLORS.primary : "var(--ds-text-light)"} />
       {badge && (
         <span style={{
           position: "absolute", top: -3, right: -3, width: 8, height: 8,
-          background: COLORS.accent, borderRadius: "50%", border: "1.5px solid white",
+          background: COLORS.accent, borderRadius: "50%", border: "1.5px solid var(--ds-card-bg)",
         }} />
       )}
     </div>
@@ -260,8 +260,8 @@ export const StatCard = ({ icon, label, value, sub, accentColor, badge, style })
   const color = accentColor || COLORS.primary;
   return (
     <div style={{
-      background: "white", borderRadius: 14, padding: "18px 20px",
-      border: `1px solid ${COLORS.cardBorder}`, boxShadow: SHADOW.stat, ...style,
+      background: "var(--ds-card-bg)", borderRadius: 14, padding: "18px 20px",
+      border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-stat)", ...style,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, background: `${color}14`, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -269,9 +269,9 @@ export const StatCard = ({ icon, label, value, sub, accentColor, badge, style })
         </div>
         {badge}
       </div>
-      <p className="ds-heading" style={{ fontSize: 28, color: COLORS.textDark, lineHeight: 1, marginBottom: 3 }}>{value}</p>
-      <p style={{ fontSize: 12, color: COLORS.textMid }}>{label}</p>
-      {sub && <p style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2 }}>{sub}</p>}
+      <p className="ds-heading" style={{ fontSize: 28, color: "var(--ds-text)", lineHeight: 1, marginBottom: 3 }}>{value}</p>
+      <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>{label}</p>
+      {sub && <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 2 }}>{sub}</p>}
     </div>
   );
 };
@@ -324,14 +324,14 @@ export const Checkbox = ({ checked, onChange, label, disabled, style }) => {
     }} onClick={(e) => { if (!disabled) { e.preventDefault(); onChange?.(!checked); } }}>
       <span style={{
         width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-        border: `1.5px solid ${checked ? COLORS.primary : COLORS.sand}`,
-        background: checked ? COLORS.primary : "white",
+        border: `1.5px solid ${checked ? COLORS.primary : "var(--ds-sand)"}`,
+        background: checked ? COLORS.primary : "var(--ds-card-bg)",
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "all 0.15s",
       }}>
         {checked && <Ic n="check" s={13} c="white" />}
       </span>
-      {label && <span style={{ fontSize: 13, color: COLORS.textDark }}>{label}</span>}
+      {label && <span style={{ fontSize: 13, color: "var(--ds-text)" }}>{label}</span>}
     </label>
   );
 };
@@ -352,7 +352,7 @@ export const RadioGroup = ({ options = [], value, onChange, direction = "vertica
           onClick={(e) => { e.preventDefault(); onChange?.(opt.value); }}>
           <span style={{
             width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-            border: `2px solid ${value === opt.value ? COLORS.primary : COLORS.sand}`,
+            border: `2px solid ${value === opt.value ? COLORS.primary : "var(--ds-sand)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all 0.15s",
           }}>
@@ -360,7 +360,7 @@ export const RadioGroup = ({ options = [], value, onChange, direction = "vertica
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: COLORS.primary }} />
             )}
           </span>
-          <span style={{ fontSize: 13, color: COLORS.textDark }}>{opt.label}</span>
+          <span style={{ fontSize: 13, color: "var(--ds-text)" }}>{opt.label}</span>
         </label>
       ))}
     </div>
@@ -379,8 +379,8 @@ export const Select = ({ options = [], value, onChange, placeholder, style }) =>
         style={{
           width: "100%", appearance: "none", WebkitAppearance: "none",
           padding: "10px 36px 10px 14px", fontSize: 13,
-          borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
-          background: "white", color: value ? COLORS.textDark : COLORS.textLight,
+          borderRadius: RADIUS.sm, border: "1.5px solid var(--ds-sand)",
+          background: "var(--ds-card-bg)", color: value ? "var(--ds-text)" : "var(--ds-text-light)",
           fontFamily: "inherit", cursor: "pointer",
           direction: dir,
           paddingInlineEnd: 36, paddingInlineStart: 14,
@@ -416,8 +416,8 @@ export const Textarea = ({ value, onChange, placeholder, rows = 3, style }) => {
       style={{
         width: "100%", boxSizing: "border-box",
         padding: "10px 14px", fontSize: 13,
-        borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
-        background: "white", color: COLORS.textDark,
+        borderRadius: RADIUS.sm, border: "1.5px solid var(--ds-sand)",
+        background: "var(--ds-card-bg)", color: "var(--ds-text)",
         fontFamily: "inherit", resize: "vertical",
         direction: dir, ...style,
       }}
@@ -499,8 +499,8 @@ export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) =>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%",
-                background: done ? COLORS.primary : active ? "white" : "white",
-                border: `2px solid ${done || active ? COLORS.primary : COLORS.sand}`,
+                background: done ? COLORS.primary : "var(--ds-card-bg)",
+                border: `2px solid ${done || active ? COLORS.primary : "var(--ds-sand)"}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 12, fontWeight: 700,
                 color: done ? "white" : active ? COLORS.primary : COLORS.textLight,

@@ -27,6 +27,9 @@ import {
 function OtpInput({ value, onChange, dark }) {
   const refs = Array.from({ length: 6 }, () => useRef(null))
 
+  // Auto-focus first input on mount
+  useEffect(() => { refs[0].current?.focus() }, [])
+
   const handleKey = (i, e) => {
     if (e.key === 'Backspace') {
       if (!value[i] && i > 0) {
