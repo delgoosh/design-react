@@ -390,6 +390,50 @@ export default {
     helpSupport:    "راهنما و پشتیبانی",
     logout:         "خروج از حساب",
     about:          "درباره دلگوش",
+    // Edit Profile
+    personalInfoTitle:       "اطلاعات شخصی",
+    firstName:               "نام",
+    lastName:                "نام خانوادگی",
+    email:                   "آدرس ایمیل",
+    phone:                   "شماره تلفن",
+    uploadPhoto:             "برای تغییر عکس بزنید",
+    profileSaved:            "پروفایل با موفقیت ذخیره شد",
+    // Session History
+    sessionHistorySubtitle:  "جلسات درمانی گذشته شما",
+    sessionCompleted:        "انجام‌شده",
+    sessionCancelled:        "لغو شده",
+    sessionDuration:         "مدت زمان",
+    noSessions:              "هنوز جلسه‌ای وجود ندارد",
+    // Notifications
+    notifSessionReminders:   "یادآوری جلسات",
+    notifAssignmentDue:      "سررسید تکالیف",
+    notifTherapistMessages:  "پیام‌های درمانگر",
+    notifPromotions:         "تبلیغات و نکات",
+    notifWeeklyReport:       "گزارش هفتگی پیشرفت",
+    // Privacy
+    privacyDescription:      "نحوه استفاده از داده‌های خود را کنترل کنید",
+    privacyShareProgress:    "اشتراک‌گذاری پیشرفت با درمانگر",
+    privacyAnalytics:        "تحلیل ناشناس استفاده",
+    privacyOnlineStatus:     "نمایش وضعیت آنلاین",
+    privacyInfo:             "داده‌های شما رمزنگاری و به صورت امن ذخیره می‌شوند. ما هرگز اطلاعات شخصی را با اشخاص ثالث به اشتراک نمی‌گذاریم.",
+    // Download Data
+    downloadDataTitle:       "دریافت داده‌های شما",
+    downloadDataDesc:        "فایلی شامل تمام اطلاعات شخصی، سابقه جلسات و تکالیف شما آماده می‌شود.",
+    downloadDataAction:      "دریافت داده‌هایم",
+    downloadDataSuccess:     "داده‌های شما در حال آماده‌سازی است. لینک دانلود به زودی به ایمیل شما ارسال می‌شود.",
+    // Delete Account
+    deleteAccountTitle:      "حساب خود را حذف می‌کنید؟",
+    deleteAccountWarning:    "این عمل دائمی است و قابل بازگشت نیست. تمام داده‌های شما حذف خواهد شد:",
+    deleteAccountItem1:      "اطلاعات شخصی و پروفایل",
+    deleteAccountItem2:      "سابقه جلسات و ضبط‌ها",
+    deleteAccountItem3:      "تکالیف و داده‌های پیشرفت",
+    deleteAccountItem4:      "مکالمات گفتگو",
+    deleteAccountType:       "برای تأیید، کلمه حذف را تایپ کنید",
+    deleteAccountConfirm:    "حذف حساب من",
+    // Logout
+    logoutTitle:             "خروج از حساب؟",
+    logoutConfirm:           "آیا مطمئنید که می‌خواهید از حساب خود خارج شوید؟",
+    logoutAction:            "خروج از حساب",
   },
   // ── Support ──────────────────────────────────────────────
   support: {
