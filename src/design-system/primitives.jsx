@@ -480,7 +480,8 @@ export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) =>
   const hasLabels = labels.length > 0;
   return (
     <div style={{
-      display: "flex", alignItems: hasLabels ? "flex-start" : "center", justifyContent: "center",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      marginBottom: hasLabels ? 18 : 0,
       direction: dir, ...style,
     }}>
       {Array.from({ length: steps }).map((_, i) => {
@@ -495,13 +496,12 @@ export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) =>
             {i > 0 && (
               <div style={{
                 flex: 1, height: 2, minWidth: 16,
-                marginTop: hasLabels ? 14 : 0,
                 background: done ? COLORS.primary : "var(--ds-sand)",
                 transition: "background 0.2s",
               }} />
             )}
-            {/* Circle + label */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            {/* Circle + label (label is absolutely positioned so it doesn't widen the container) */}
+            <div style={{ position: "relative" }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
                 background: done ? COLORS.primary : "var(--ds-card-bg)",
@@ -515,7 +515,9 @@ export const StepIndicator = ({ steps = 4, current = 0, labels = [], style }) =>
               </div>
               {labels[i] && (
                 <span style={{
-                  fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+                  position: "absolute", top: "calc(100% + 4px)", left: "50%",
+                  transform: "translateX(-50%)", whiteSpace: "nowrap",
+                  fontSize: 10, fontWeight: 600,
                   color: done || active ? COLORS.primary : "var(--ds-text-light)",
                 }}>
                   {labels[i]}

@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // ONBOARDING SHELL — step router, progress, layout, state
-// Renders the 4-step onboarding flow for patient or therapist.
+// Renders the 5-step onboarding flow for patient (4 for therapist).
 // TODO(backend-integration): persist onboarding state to backend
 // so refreshing the page resumes where the user left off.
 // ─────────────────────────────────────────────────────────────
@@ -12,25 +12,35 @@ import { StepProfile }           from "./StepProfile.jsx";
 import { StepQuestionnaire }     from "./StepQuestionnaire.jsx";
 import { StepAiChat }            from "./StepAiChat.jsx";
 import { StepPatientMatch }      from "./StepPatientMatch.jsx";
+import { StepPayment }           from "./StepPayment.jsx";
 import { StepTherapistSchedule } from "./StepTherapistSchedule.jsx";
-
-const TOTAL_STEPS = 4;
 
 export const OnboardingShell = ({ role, email, onComplete }) => {
   const { lang, dir, t } = useLang();
   const isD = useIsDesktop();
   const [step, setStep]           = useState(0);
+  const isPatient = role === "patient";
+  const TOTAL_STEPS = isPatient ? 5 : 4;
 
   // Shared form data — preserved across steps
-  const [profile, setProfile]         = useState({ firstName: "", lastName: "", avatar: null });
+  const [profile, setProfile]         = useState({ firstName: "", lastName: "", avatar: null, email: email || "", phone: "" });
   const [answers, setAnswers]         = useState({});
+  const [selectedTherapist, setSelectedTherapist] = useState(null);
 
-  const stepLabels = [
-    t("onboarding.profileTitle"),
-    t("onboarding.questionnaireTitle"),
-    t("onboarding.aiChatTitle"),
-    role === "patient" ? t("onboarding.matchTitle") : t("onboarding.scheduleTitle"),
-  ];
+  const stepLabels = isPatient
+    ? [
+        t("onboarding.profileTitle"),
+        t("onboarding.questionnaireTitle"),
+        t("onboarding.aiChatTitle"),
+        t("onboarding.matchTitle"),
+        t("onboarding.paymentTitle"),
+      ]
+    : [
+        t("onboarding.profileTitle"),
+        t("onboarding.questionnaireTitle"),
+        t("onboarding.aiChatTitle"),
+        t("onboarding.scheduleTitle"),
+      ];
 
   const canGoNext = step < TOTAL_STEPS - 1;
   const canGoBack = step > 0;
@@ -38,16 +48,32 @@ export const OnboardingShell = ({ role, email, onComplete }) => {
   const goNext = () => { if (canGoNext) setStep((s) => s + 1); };
   const goBack = () => { if (canGoBack) setStep((s) => s - 1); };
 
+  // Patient: "Book session" → save therapist, jump to payment step
+  const handleBookSession = (therapist) => {
+    setSelectedTherapist(therapist);
+    setStep(4); // payment step
+  };
+
+  // Booking failed (slot taken) → return to match list
+  const handleBookingFailed = () => {
+    setSelectedTherapist(null);
+    setStep(3);
+  };
+
   // Render current step
   const renderStep = () => {
     switch (step) {
-      case 0: return <StepProfile profile={profile} setProfile={setProfile} onNext={goNext} />;
+      case 0: return <StepProfile profile={profile} setProfile={setProfile} originalEmail={email || ""} onNext={goNext} />;
       case 1: return <StepQuestionnaire role={role} answers={answers} setAnswers={setAnswers} onNext={goNext} onBack={goBack} />;
       case 2: return <StepAiChat role={role} onNext={goNext} onBack={goBack} />;
       case 3:
-        return role === "patient"
-          ? <StepPatientMatch onComplete={onComplete} onBack={goBack} />
+        return isPatient
+          ? <StepPatientMatch onBookSession={handleBookSession} onComplete={onComplete} onBack={goBack} />
           : <StepTherapistSchedule onComplete={onComplete} onBack={goBack} />;
+      case 4:
+        return isPatient
+          ? <StepPayment therapist={selectedTherapist} onComplete={onComplete} onBookingFailed={handleBookingFailed} onBack={goBack} />
+          : null;
       default: return null;
     }
   };
