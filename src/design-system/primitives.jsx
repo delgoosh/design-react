@@ -256,12 +256,13 @@ export const BottomNavItem = ({ icon, label, active, badge, onClick }) => (
 );
 
 // ── StatCard ──────────────────────────────────────────────────
-export const StatCard = ({ icon, label, value, sub, accentColor, badge, style }) => {
+export const StatCard = ({ icon, label, value, sub, accentColor, badge, style, onClick }) => {
   const color = accentColor || COLORS.primary;
   return (
-    <div style={{
+    <div onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} style={{
       background: "var(--ds-card-bg)", borderRadius: 14, padding: "18px 20px",
-      border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-stat)", ...style,
+      border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-stat)",
+      ...(onClick && { cursor: "pointer" }), ...style,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, background: `${color}14`, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
