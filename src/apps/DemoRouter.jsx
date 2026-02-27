@@ -42,8 +42,21 @@ export const DemoRouter = () => {
   }
 
   // TODO(backend-integration): role must come from backend JWT/session, not email string
-  const isTherapist = email.toLowerCase().includes("therapist");
+  // "nt" prefix (nt2, nt3, nt4) also counts as therapist
+  const e = email.toLowerCase();
+  const isTherapist = e.includes("therapist") || /\bnt[2-4]\b/.test(e);
   const role = isTherapist ? "therapist" : "patient";
+
+  // DEMO SHORTCUT: emails containing "np2"–"np5" or "nt2"–"nt4" jump to that step
+  // Patient: np2=questionnaire, np3=AI chat, np4=matches, np5=payment
+  // Therapist: nt2=questionnaire, nt3=AI chat, nt4=schedule (4 steps total)
+  const initialStep = (() => {
+    if (e.includes("np5")) return 4;
+    if (e.includes("np4") || e.includes("nt4")) return 3;
+    if (e.includes("np3") || e.includes("nt3")) return 2;
+    if (e.includes("np2") || e.includes("nt2")) return 1;
+    return 0;
+  })();
 
   // Step 2: Logged in but not onboarded → Onboarding
   if (!onboarded && !skipOnboarding) {
@@ -51,6 +64,7 @@ export const DemoRouter = () => {
       <OnboardingShell
         role={role}
         email={email}
+        initialStep={initialStep}
         onComplete={() => setOnboarded(true)}
       />
     );

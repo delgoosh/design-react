@@ -1,64 +1,112 @@
 // ─────────────────────────────────────────────────────────────
-// STEP 1 — Profile setup (name, avatar, OAuth import)
-// TODO(backend-integration): OAuth import should call the real
-// Google/Apple APIs to fetch user info and avatar.
+// STEP 1 — Profile setup (name, email, phone, avatar)
+// Matches the Edit Profile form from Profile.jsx.
+// If the user changes their email from the one they signed up
+// with, an inline OTP verification is required before proceeding.
+// TODO(backend-integration): OTP send/verify should call real
+// POST /auth/send-otp and POST /auth/verify-otp endpoints.
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLang, Button, AvatarUpload, Card } from "@ds";
 import { COLORS, RADIUS } from "@ds";
-import { MOCK_OAUTH } from "./mockData.js";
 
-// Inline SVG logos (kept small, same pattern as Auth.jsx)
-const GoogleLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.06 24.06 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-);
-const AppleLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
-);
-
-export const StepProfile = ({ profile, setProfile, onNext }) => {
+export const StepProfile = ({ profile, setProfile, originalEmail, onNext }) => {
   const { t, dir } = useLang();
   const [error, setError] = useState(null);
+
+  // ── Email-change OTP state ──────────────────────────────
+  const [showOtp, setShowOtp] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [countdown, setCountdown] = useState(0);
+  const countdownRef = useRef(null);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (countdown <= 0) { clearInterval(countdownRef.current); return; }
+    countdownRef.current = setInterval(() => {
+      setCountdown((c) => { if (c <= 1) { clearInterval(countdownRef.current); return 0; } return c - 1; });
+    }, 1000);
+    return () => clearInterval(countdownRef.current);
+  }, [countdown]);
+
+  // Reset verification when email changes back to original
+  const emailChanged = profile.email.trim().toLowerCase() !== originalEmail.trim().toLowerCase();
+  useEffect(() => {
+    if (!emailChanged) { setShowOtp(false); setEmailVerified(false); setOtp(""); }
+  }, [emailChanged]);
 
   const updateField = (key, val) => {
     setProfile((prev) => ({ ...prev, [key]: val }));
     setError(null);
   };
 
-  // TODO(backend-integration): replace with real OAuth flow
-  const importOAuth = (provider) => {
-    const data = MOCK_OAUTH[provider];
-    setProfile((prev) => ({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      avatar: data.avatar || prev.avatar,
-    }));
-    setError(null);
-  };
+  const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
   const handleNext = () => {
-    if (!profile.firstName.trim() || !profile.lastName.trim()) {
+    if (!profile.firstName.trim() || !profile.lastName.trim() || !profile.email.trim()) {
       setError(t("onboarding.fieldsRequired"));
+      return;
+    }
+    if (!isValidEmail(profile.email.trim())) {
+      setError(t("auth.invalidEmail"));
+      return;
+    }
+    // Email changed → require OTP verification
+    if (emailChanged && !emailVerified) {
+      setShowOtp(true);
+      if (countdown <= 0) setCountdown(120);
       return;
     }
     onNext();
   };
 
+  const handleVerifyOtp = () => {
+    if (otp.replace(/\s/g, "").length === 6) {
+      // TODO(backend-integration): verify OTP with POST /auth/verify-otp
+      setEmailVerified(true);
+      setShowOtp(false);
+      onNext();
+    }
+  };
+
+  const handleCancelOtp = () => {
+    setShowOtp(false);
+    setOtp("");
+    setCountdown(0);
+    updateField("email", originalEmail);
+  };
+
+  const handleResend = () => {
+    if (countdown <= 0) {
+      // TODO(backend-integration): resend OTP
+      setCountdown(120);
+      setOtp("");
+    }
+  };
+
   const inputStyle = {
     width: "100%", boxSizing: "border-box",
     padding: "10px 14px", fontSize: 13,
-    borderRadius: RADIUS.sm, border: `1.5px solid ${COLORS.sand}`,
-    background: "white", color: COLORS.textDark,
+    borderRadius: RADIUS.sm, border: "1.5px solid var(--ds-sand)",
+    background: "var(--ds-card-bg)", color: "var(--ds-text)",
     fontFamily: "inherit", direction: dir, outline: "none",
   };
 
+  const labelStyle = {
+    fontSize: 12, fontWeight: 600, color: "var(--ds-text-mid)", marginBottom: 4, display: "block",
+  };
+
+  const canSubmit = profile.firstName.trim() && profile.lastName.trim() && profile.email.trim();
+
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
+      {/* Title */}
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.profileTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.profileSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.profileSub")}</p>
       </div>
 
       {/* Avatar */}
@@ -67,27 +115,12 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
         onFileSelect={(url) => updateField("avatar", url)}
         size={96}
       />
-      <p style={{ fontSize: 11, color: COLORS.textLight, marginTop: -16 }}>{t("onboarding.photoHint")}</p>
+      <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: -16 }}>{t("onboarding.photoHint")}</p>
 
-      {/* OAuth import buttons */}
-      <Card variant="sm" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
-        <OAuthImportButton icon={<GoogleLogo />} label={t("onboarding.importGoogle")} onClick={() => importOAuth("google")} />
-        <OAuthImportButton icon={<AppleLogo />} label={t("onboarding.importApple")} onClick={() => importOAuth("apple")} />
-      </Card>
-
-      {/* Divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
-        <div style={{ flex: 1, height: 1, background: COLORS.sand }} />
-        <span style={{ fontSize: 12, color: COLORS.textLight }}>{t("onboarding.orEnterManually")}</span>
-        <div style={{ flex: 1, height: 1, background: COLORS.sand }} />
-      </div>
-
-      {/* Name fields */}
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Form fields — matches Edit Profile in Profile.jsx */}
+      <Card style={{ width: "100%", display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMid, marginBottom: 4, display: "block" }}>
-            {t("onboarding.firstName")}
-          </label>
+          <label style={labelStyle}>{t("onboarding.firstName")}</label>
           <input
             type="text"
             value={profile.firstName}
@@ -97,9 +130,7 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
           />
         </div>
         <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMid, marginBottom: 4, display: "block" }}>
-            {t("onboarding.lastName")}
-          </label>
+          <label style={labelStyle}>{t("onboarding.lastName")}</label>
           <input
             type="text"
             value={profile.lastName}
@@ -108,42 +139,159 @@ export const StepProfile = ({ profile, setProfile, onNext }) => {
             style={inputStyle}
           />
         </div>
-      </div>
+        <div>
+          <label style={labelStyle}>{t("onboarding.email")}</label>
+          <input
+            type="email"
+            value={profile.email}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder={t("onboarding.emailPh")}
+            style={inputStyle}
+            disabled={showOtp}
+          />
+
+          {/* ── Inline OTP verification ───────────────── */}
+          {showOtp && (
+            <div style={{
+              marginTop: 12, padding: 16, borderRadius: RADIUS.md,
+              background: "var(--ds-cream)", border: "1.5px solid var(--ds-sand)",
+              display: "flex", flexDirection: "column", gap: 12, alignItems: "center",
+            }}>
+              <p style={{ fontSize: 12, color: "var(--ds-text-mid)", textAlign: "center", margin: 0 }}>
+                {t("onboarding.otpSentTo")}
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)", margin: 0, direction: "ltr" }}>
+                {profile.email}
+              </p>
+
+              {/* 6-digit OTP input */}
+              <OtpInput value={otp} onChange={setOtp} />
+
+              <Button
+                variant="primary"
+                onClick={handleVerifyOtp}
+                style={{ width: "100%", opacity: otp.replace(/\s/g, "").length < 6 ? 0.5 : 1 }}
+              >
+                {t("onboarding.verifyNewEmail")}
+              </Button>
+
+              <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                {countdown > 0 ? (
+                  <span style={{ fontSize: 12, color: "var(--ds-text-light)" }}>
+                    {t("auth.resendIn")} {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleResend}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 12, fontWeight: 600, color: COLORS.primary, fontFamily: "inherit",
+                    }}
+                  >
+                    {t("auth.resendCode")}
+                  </button>
+                )}
+                <button
+                  onClick={handleCancelOtp}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 12, fontWeight: 600, color: COLORS.danger, fontFamily: "inherit",
+                  }}
+                >
+                  {t("action.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <label style={labelStyle}>{t("onboarding.phone")}</label>
+          <input
+            type="tel"
+            value={profile.phone}
+            onChange={(e) => updateField("phone", e.target.value)}
+            placeholder={t("onboarding.phonePh")}
+            style={{ ...inputStyle, direction: "ltr" }}
+          />
+        </div>
+      </Card>
 
       {/* Error */}
       {error && <p style={{ fontSize: 12, color: COLORS.danger, textAlign: "center" }}>{error}</p>}
 
       {/* Next */}
-      <Button
-        variant="primary"
-        onClick={handleNext}
-        style={{ width: "100%", opacity: (!profile.firstName.trim() || !profile.lastName.trim()) ? 0.5 : 1 }}
-      >
-        {t("onboarding.next")}
-      </Button>
+      {!showOtp && (
+        <Button
+          variant="primary"
+          onClick={handleNext}
+          style={{ width: "100%", opacity: canSubmit ? 1 : 0.5 }}
+        >
+          {t("onboarding.next")}
+        </Button>
+      )}
     </div>
   );
 };
 
-// ── Small OAuth-style import button ────────────────────────
-function OAuthImportButton({ icon, label, onClick }) {
-  const [hover, setHover] = useState(false);
+// ── Inline 6-digit OTP input (same pattern as Auth.jsx) ────
+function OtpInput({ value, onChange }) {
+  const refs = Array.from({ length: 6 }, () => useRef(null));
+
+  useEffect(() => { refs[0].current?.focus(); }, []);
+
+  const handleKey = (i, e) => {
+    if (e.key === "Backspace") {
+      if (!value[i] && i > 0) {
+        refs[i - 1].current?.focus();
+        const next = value.split("");
+        next[i - 1] = "";
+        onChange(next.join(""));
+      } else {
+        const next = value.split("");
+        next[i] = "";
+        onChange(next.join(""));
+      }
+      return;
+    }
+    if (!/^\d$/.test(e.key)) return;
+    const next = value.padEnd(6, " ").split("");
+    next[i] = e.key;
+    onChange(next.join(""));
+    if (i < 5) refs[i + 1].current?.focus();
+  };
+
+  const handlePaste = (e) => {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    onChange(text.padEnd(6, "").slice(0, 6));
+    refs[Math.min(text.length, 5)].current?.focus();
+    e.preventDefault();
+  };
+
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "center",
-        gap: 10, padding: "10px 20px", borderRadius: RADIUS.md,
-        border: `1.5px solid ${hover ? COLORS.sand : "rgba(184,216,212,0.5)"}`,
-        background: hover ? COLORS.cream : "white",
-        cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600,
-        color: COLORS.textDark, transition: "all 0.18s",
-      }}
-    >
-      {icon}
-      {label}
-    </button>
+    <div style={{ display: "flex", gap: 8, justifyContent: "center", direction: "ltr" }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[i] || ""}
+          onChange={() => {}}
+          onKeyDown={(e) => handleKey(i, e)}
+          onPaste={handlePaste}
+          style={{
+            width: 40, height: 48, textAlign: "center",
+            fontSize: 18, fontWeight: 700, borderRadius: RADIUS.md,
+            border: `1.5px solid ${value[i] && value[i] !== " " ? COLORS.primary : "var(--ds-sand)"}`,
+            background: value[i] && value[i] !== " " ? COLORS.primaryGhost : "var(--ds-card-bg)",
+            color: "var(--ds-text)",
+            boxShadow: value[i] && value[i] !== " " ? "0 0 0 3px rgba(59,175,160,0.13)" : "none",
+            transition: "all 0.15s",
+            outline: "none",
+          }}
+        />
+      ))}
+    </div>
   );
 }

@@ -483,7 +483,14 @@ export default {
     firstNamePh:        "Enter your first name",
     lastNamePh:         "Enter your last name",
     photoHint:          "Tap to upload a photo",
-    fieldsRequired:     "Both name fields are required",
+    email:              "Email address",
+    emailPh:            "you@example.com",
+    phone:              "Phone number",
+    phonePh:            "Enter your phone number",
+    verifyNewEmail:     "Verify new email",
+    otpSentTo:          "We sent a 6-digit code to:",
+    emailReverted:      "Email reverted to original",
+    fieldsRequired:     "Please fill in all required fields",
 
     // Step 2 — Questionnaire
     questionnaireTitle:  "A few questions",
@@ -562,6 +569,15 @@ export default {
     nextAvailable:      "Next available",
     bookSession:        "Book session",
     goToDashboard:      "Go to dashboard",
+
+    // Step 5 — Payment
+    paymentTitle:       "Purchase credits",
+    paymentSub:         "Buy a session credit to book your first appointment",
+    confirmBooking:     "Confirm booking",
+    bookingSuccess:     "Session booked successfully!",
+    bookingFailed:      "This slot was just taken by another patient. Returning to available therapists…",
+    selectedSlot:       "Selected session",
+    needCredit:         "You need at least 1 credit to book",
 
     // Step 4b — Therapist Schedule
     scheduleTitle:      "Set your ideal week",
