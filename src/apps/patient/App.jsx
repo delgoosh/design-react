@@ -64,6 +64,10 @@ export const PatientApp = ({ skipAuth }) => {
   const [chatContext, setChatContext] = useState(null);
   const [chatCredit, setChatCredit] = useState(20);   // lifted so Chat + Credits share it
 
+  // ── Credit state (lifted so Therapists + Credits share it) ──
+  const [sessionCredits, setSessionCredits] = useState(3);
+  const [autoRenew, setAutoRenew] = useState(true);     // auto-renew ON by default
+
   // ── Therapist state ────────────────────────────────────
   const [chosenTherapist, setChosenTherapist] = useState(MOCK_THERAPISTS[0]);
   const [suggestedTherapists, setSuggestedTherapists] = useState(MOCK_THERAPISTS.slice(1));
@@ -75,8 +79,19 @@ export const PatientApp = ({ skipAuth }) => {
     setNextSession(null);
   }, []);
 
-  const handleBookSession = useCallback((therapist) => {
-    setNextSession(MOCK_NEXT_SESSION(therapist));
+  const handleBookSession = useCallback((therapist, sessionData) => {
+    // sessionData may come from the booking sheet with specific date/time
+    if (sessionData) {
+      setNextSession({
+        therapistId: therapist.id,
+        therapistName: therapist.name,
+        topic: { en: "Therapy session", fa: "جلسه درمان" },
+        date: sessionData.date,
+        time: sessionData.time,
+      });
+    } else {
+      setNextSession(MOCK_NEXT_SESSION(therapist));
+    }
   }, []);
 
   // ── Assignment state ─────────────────────────────────────
@@ -191,6 +206,14 @@ export const PatientApp = ({ skipAuth }) => {
     onCompleteAssignment: handleCompleteAssignment,
   };
 
+  // Credit-specific props (shared between Credits + Therapists)
+  const creditProps = {
+    sessionCredits,
+    setSessionCredits,
+    autoRenew,
+    setAutoRenew,
+  };
+
   // Therapist-specific props
   const therapistProps = {
     chosenTherapist,
@@ -198,6 +221,7 @@ export const PatientApp = ({ skipAuth }) => {
     nextSession,
     onChooseTherapist: handleChooseTherapist,
     onBookSession:     handleBookSession,
+    ...creditProps,
   };
 
   return (
@@ -235,6 +259,7 @@ export const PatientApp = ({ skipAuth }) => {
               {...chatProps}
               {...therapistProps}
               {...assignmentProps}
+              {...creditProps}
             />
           </main>
         </div>
