@@ -3,9 +3,10 @@
 // Renders the correct screen based on `tab` state.
 // Desktop: sidebar nav | Mobile: bottom nav (5 tabs max)
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
+import { MOCK_THERAPIST_AVAILABILITY } from "@shared/components/onboarding/mockData.js";
 
 // Auth is shared — handles both apps
 import Auth from "@shared/components/Auth.jsx";
@@ -47,6 +48,11 @@ export const TherapistApp = ({ skipAuth }) => {
   const isD  = useIsDesktop();
   const [authed, setAuthed] = useState(skipAuth || false);
   const [tab,    setTab]    = useState("home");
+
+  // ── Availability state (CREDIT-201/202) ──────────────────
+  const [availability, setAvailability] = useState(MOCK_THERAPIST_AVAILABILITY["t1"]);
+  const [bookedBlocks, setBookedBlocks] = useState(new Set());
+  const [heldBlocks, setHeldBlocks]     = useState(new Set());
 
   if (!authed) {
     return <Auth mode="therapist" onLogin={() => setAuthed(true)} />;
@@ -94,13 +100,13 @@ export const TherapistApp = ({ skipAuth }) => {
             </div>
           </aside>
           <main className="ds-main">
-            <Screen setTab={setTab} />
+            <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} />
           </main>
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: COLORS.bg, position: "relative" }}>
-          <Screen setTab={setTab} />
+        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "var(--ds-bg)", position: "relative" }}>
+          <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (
               <BottomNavItem

@@ -47,6 +47,8 @@ export const MOCK_THERAPISTS = [
     matchPercent: 95,
     nextSlot:     { en: "Tomorrow, 10:00 AM", fa: "فردا، ۱۰:۰۰ صبح" },
     avatar:       null,
+    timezone:     "Asia/Tehran",
+    utcOffset:    "+03:30",
   },
   {
     id: "t2",
@@ -61,6 +63,8 @@ export const MOCK_THERAPISTS = [
     matchPercent: 88,
     nextSlot:     { en: "Wed, 3:00 PM", fa: "چهارشنبه، ۳:۰۰ بعدازظهر" },
     avatar:       null,
+    timezone:     "America/New_York",
+    utcOffset:    "-05:00",
   },
   {
     id: "t3",
@@ -75,6 +79,8 @@ export const MOCK_THERAPISTS = [
     matchPercent: 82,
     nextSlot:     { en: "Thu, 11:00 AM", fa: "پنجشنبه، ۱۱:۰۰ صبح" },
     avatar:       null,
+    timezone:     "Asia/Kolkata",
+    utcOffset:    "+05:30",
   },
 ];
 
@@ -91,7 +97,7 @@ export const MOCK_NEXT_SESSION = (therapist) => {
              fa: d.toLocaleDateString("fa-IR", { weekday: "short", month: "short", day: "numeric" }) },
     time:  { en: "10:00 AM", fa: "۱۰:۰۰ صبح" },
     dateISO: d.toISOString(),
-    slotIdx: 2,
+    startTime: "10:00",
     dateStr: d.toISOString().slice(0, 10),
   };
 };
@@ -245,3 +251,48 @@ export const MOCK_TRANSACTIONS = [
     therapistName: null, reasonCode: null, receiptAvailable: true,
   },
 ];
+
+// ── Therapist availability (CREDIT-201) ──────────────────────
+// Each therapist's recurring weekly availability as time ranges.
+// Times are in therapist's local timezone.
+export const MOCK_THERAPIST_AVAILABILITY = {
+  t1: {
+    timezone: "Asia/Tehran",
+    utcOffset: "+03:30",
+    ranges: {
+      sat: [],
+      sun: [{ start: "09:00", end: "16:30" }],
+      mon: [{ start: "09:00", end: "16:30" }],
+      tue: [{ start: "13:30", end: "21:00" }],
+      wed: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:30" }],
+      thu: [{ start: "10:00", end: "16:00" }],
+      fri: [],
+    },
+  },
+  t2: {
+    timezone: "America/New_York",
+    utcOffset: "-05:00",
+    ranges: {
+      sat: [],
+      sun: [],
+      mon: [{ start: "08:00", end: "15:30" }],
+      tue: [{ start: "08:00", end: "15:30" }],
+      wed: [{ start: "08:00", end: "15:30" }],
+      thu: [{ start: "08:00", end: "12:30" }],
+      fri: [{ start: "10:00", end: "14:30" }],
+    },
+  },
+  t3: {
+    timezone: "Asia/Kolkata",
+    utcOffset: "+05:30",
+    ranges: {
+      sat: [{ start: "10:00", end: "16:00" }],
+      sun: [{ start: "10:00", end: "16:00" }],
+      mon: [{ start: "09:00", end: "18:00" }],
+      tue: [],
+      wed: [{ start: "09:00", end: "18:00" }],
+      thu: [{ start: "09:00", end: "18:00" }],
+      fri: [],
+    },
+  },
+};
