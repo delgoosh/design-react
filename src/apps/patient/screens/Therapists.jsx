@@ -2,12 +2,13 @@
 // PATIENT / Therapists
 // ─────────────────────────────────────────────────────────────
 // Shows chosen therapist (top card), suggested alternatives,
-// and an option to redo the triage/matching questionnaire.
+// booking BottomSheet with date strip + time chips,
+// recurring-weekly / auto-renew logic, and re-triage flow.
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
-import { useLang, useIsDesktop, Card, Tag, Button, Avatar, StarRating, StepIndicator, Ic } from "@ds";
+import { useState, useMemo } from "react";
+import { useLang, useIsDesktop, Card, Tag, Button, Avatar, StarRating, StepIndicator, Ic, BottomSheet, Checkbox, ProgressBar } from "@ds";
 import { COLORS, RADIUS } from "@ds";
-import { MOCK_THERAPISTS } from "@shared/components/onboarding/mockData.js";
+import { MOCK_THERAPISTS, SCHEDULE_SLOTS } from "@shared/components/onboarding/mockData.js";
 import { StepQuestionnaire } from "@shared/components/onboarding/StepQuestionnaire.jsx";
 import { StepAiChat } from "@shared/components/onboarding/StepAiChat.jsx";
 
@@ -17,6 +18,86 @@ function loc(obj, lang) {
   return obj?.[lang] || obj?.en || "";
 }
 
+// ── Mock availability generator ──────────────────────────────
+// Deterministic pseudo-random based on therapist ID + date string
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function generateAvailability(therapistId) {
+  const days = [];
+  const now = new Date();
+  // Start from tomorrow
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayOfWeek = d.getDay(); // 0=Sun
+    // Skip Fridays (5) as a realistic pattern
+    if (dayOfWeek === 5) {
+      days.push({ date: d, dateStr, slots: [] });
+      continue;
+    }
+    // Generate 4-7 available slots deterministically
+    const seed = hashStr(therapistId + dateStr);
+    const slots = [];
+    for (let s = 0; s < SCHEDULE_SLOTS.length; s++) {
+      if ((seed * (s + 1) * 7) % 10 < 6) slots.push(s);
+    }
+    days.push({ date: d, dateStr, slots });
+  }
+  return days;
+}
+
+// Format time slot for display
+function formatSlot(slotIdx, lang) {
+  const raw = SCHEDULE_SLOTS[slotIdx]; // e.g. "10:20"
+  if (lang === "fa") {
+    // Convert to Persian digits
+    return raw.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+  }
+  // Convert to 12h for English
+  const [h, m] = raw.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+// Format date for display
+function formatDate(date, lang) {
+  if (lang === "fa") {
+    return date.toLocaleDateString("fa-IR", { weekday: "short", month: "short", day: "numeric" });
+  }
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatDateFull(date, lang) {
+  if (lang === "fa") {
+    return date.toLocaleDateString("fa-IR", { weekday: "long", month: "long", day: "numeric" });
+  }
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+// Get short weekday + day number for date strip
+function dateStripLabel(date, lang) {
+  const weekday = date.toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { weekday: "short" });
+  const day = date.toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", { day: "numeric" });
+  return { weekday, day };
+}
+
+// Check if a date is today or tomorrow
+function dateRelative(date, t) {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (date.toDateString() === today.toDateString()) return t("therapists.today");
+  if (date.toDateString() === tomorrow.toDateString()) return t("therapists.tomorrow");
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
 export const Therapists = ({
   navigate,
   chosenTherapist,
@@ -24,6 +105,9 @@ export const Therapists = ({
   nextSession,
   onChooseTherapist,
   onBookSession,
+  sessionCredits = 3,
+  setSessionCredits,
+  autoRenew = true,
 }) => {
   const { t, lang, dir } = useLang();
   const isD = useIsDesktop();
@@ -31,11 +115,113 @@ export const Therapists = ({
 
   // ── Re-triage state ───────────────────────────────────────
   const [retriageMode, setRetriageMode] = useState(false);
-  const [retriageStep, setRetriageStep] = useState(0); // 0=questionnaire, 1=ai, 2=match
+  const [retriageStep, setRetriageStep] = useState(0);
   const [retriageAnswers, setRetriageAnswers] = useState({});
+
+  // ── Booking state ─────────────────────────────────────────
+  const [showBooking, setShowBooking] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null); // index into availability
+  const [selectedSlot, setSelectedSlot] = useState(null); // slot index
+  const [recurringChecked, setRecurringChecked] = useState(true);
+  const [bookingStatus, setBookingStatus] = useState(null); // null | "success"
+  const [bookedSessions, setBookedSessions] = useState([]);
+  const [heldSlots, setHeldSlots] = useState([]);
 
   const gap = isD ? 20 : 12;
   const pad = isD ? 28 : 14;
+
+  // Generate availability for chosen therapist
+  const availability = useMemo(
+    () => chosenTherapist ? generateAvailability(chosenTherapist.id) : [],
+    [chosenTherapist?.id]
+  );
+
+  // Compute recurring count (same weekday + same time slot in future weeks)
+  const recurringInfo = useMemo(() => {
+    if (selectedDate == null || selectedSlot == null) return { count: 0, dates: [] };
+    const selDay = availability[selectedDate];
+    if (!selDay) return { count: 0, dates: [] };
+    const selWeekday = selDay.date.getDay();
+    // Find all future days with same weekday + same slot available
+    const matchingDates = [selDay]; // include the selected one
+    for (let i = selectedDate + 1; i < availability.length; i++) {
+      const d = availability[i];
+      if (d.date.getDay() === selWeekday && d.slots.includes(selectedSlot)) {
+        matchingDates.push(d);
+      }
+    }
+    // Cap by available credits
+    const maxByCredits = Math.min(matchingDates.length, sessionCredits);
+    return { count: maxByCredits, dates: matchingDates.slice(0, maxByCredits) };
+  }, [selectedDate, selectedSlot, availability, sessionCredits]);
+
+  // Held weeks count for auto-renew (future matching weeks in horizon)
+  const heldWeeksCount = useMemo(() => {
+    if (selectedDate == null || selectedSlot == null) return 0;
+    const selDay = availability[selectedDate];
+    if (!selDay) return 0;
+    const selWeekday = selDay.date.getDay();
+    let count = 0;
+    for (let i = selectedDate + 1; i < availability.length; i++) {
+      const d = availability[i];
+      if (d.date.getDay() === selWeekday && d.slots.includes(selectedSlot)) count++;
+    }
+    return count;
+  }, [selectedDate, selectedSlot, availability]);
+
+  // ── Open booking sheet ──────────────────────────────────
+  const handleOpenBooking = () => {
+    setShowBooking(true);
+    setSelectedDate(null);
+    setSelectedSlot(null);
+    setRecurringChecked(true);
+    setBookingStatus(null);
+  };
+
+  // ── Confirm booking ────────────────────────────────────
+  const handleConfirmBooking = () => {
+    if (selectedDate == null || selectedSlot == null || sessionCredits < 1) return;
+    const selDay = availability[selectedDate];
+    const sessionData = {
+      date: { en: formatDate(selDay.date, "en"), fa: formatDate(selDay.date, "fa") },
+      time: { en: formatSlot(selectedSlot, "en"), fa: formatSlot(selectedSlot, "fa") },
+    };
+
+    if (autoRenew) {
+      // CREDIT-303: Deduct 1 credit, hold future slots
+      setSessionCredits?.((s) => s - 1);
+      const newHeld = [];
+      for (let i = selectedDate + 1; i < availability.length; i++) {
+        const d = availability[i];
+        if (d.date.getDay() === selDay.date.getDay() && d.slots.includes(selectedSlot)) {
+          newHeld.push({ dateStr: d.dateStr, slotIdx: selectedSlot });
+        }
+      }
+      setHeldSlots((prev) => [...prev, ...newHeld]);
+      setBookedSessions((prev) => [...prev, { dateStr: selDay.dateStr, slotIdx: selectedSlot }]);
+    } else if (recurringChecked && sessionCredits > 1 && recurringInfo.count > 1) {
+      // CREDIT-302: Book N sessions, deduct N credits
+      const n = recurringInfo.count;
+      setSessionCredits?.((s) => s - n);
+      const newBooked = recurringInfo.dates.map((d) => ({ dateStr: d.dateStr, slotIdx: selectedSlot }));
+      setBookedSessions((prev) => [...prev, ...newBooked]);
+    } else {
+      // CREDIT-301: Single booking
+      setSessionCredits?.((s) => s - 1);
+      setBookedSessions((prev) => [...prev, { dateStr: selDay.dateStr, slotIdx: selectedSlot }]);
+    }
+
+    onBookSession?.(chosenTherapist, sessionData);
+    setBookingStatus("success");
+    setTimeout(() => {
+      setShowBooking(false);
+      setBookingStatus(null);
+    }, 1500);
+  };
+
+  // Check if a slot is already booked
+  const isBooked = (dateStr, slotIdx) => bookedSessions.some((b) => b.dateStr === dateStr && b.slotIdx === slotIdx);
+  const isHeld = (dateStr, slotIdx) => heldSlots.some((h) => h.dateStr === dateStr && h.slotIdx === slotIdx);
 
   // ── Re-triage flow ────────────────────────────────────────
   if (retriageMode) {
@@ -110,16 +296,6 @@ export const Therapists = ({
       maxWidth: isD ? 680 : undefined,
       margin: isD ? "0 auto" : undefined,
     }} className="ds-stagger">
-      {/* Page header */}
-      <div style={{ marginBottom: gap + 4 }} className="ds-anim-fadeUp">
-        <h1 className="ds-heading" style={{ fontSize: isD ? 26 : 20, color: "var(--ds-text)", marginBottom: 4 }}>
-          {t("therapists.title")}
-        </h1>
-        <p style={{ fontSize: isD ? 13 : 12, color: "var(--ds-text-mid)" }}>
-          {t("therapists.subtitle")}
-        </p>
-      </div>
-
       {/* ── Chosen therapist card ──────────────────────────── */}
       {chosenTherapist ? (
         <ChosenTherapistCard
@@ -130,34 +306,45 @@ export const Therapists = ({
           isD={isD}
           isRtl={isRtl}
           t={t}
-          onBook={() => onBookSession?.(chosenTherapist)}
+          sessionCredits={sessionCredits}
+          onBook={handleOpenBooking}
           onManage={() => navigate?.("credits")}
           onChange={() => {/* scroll to suggestions */}}
         />
       ) : (
-        /* Empty state */
-        <Card style={{
-          textAlign: "center", padding: "36px 20px", marginBottom: gap,
-        }} className="ds-anim-fadeUp">
-          <Ic n="users" s={36} c={COLORS.textLight} />
-          <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)", marginTop: 12 }}>
-            {t("therapists.noTherapistYet")}
-          </p>
-          <p style={{ fontSize: 12, color: "var(--ds-text-light)", marginTop: 4, marginBottom: 16 }}>
-            {t("therapists.noTherapistDesc")}
-          </p>
-          <Button variant="primary" size="sm" onClick={() => { setRetriageMode(true); setRetriageStep(0); }}>
-            <Ic n="zap" s={14} c="white" />
-            {t("therapists.startMatch")}
-          </Button>
-        </Card>
+        /* Empty state — onboarding incomplete */
+        <>
+          <div style={{ marginBottom: gap + 4 }} className="ds-anim-fadeUp">
+            <h1 className="ds-heading" style={{ fontSize: isD ? 26 : 20, color: "var(--ds-text)", marginBottom: 4 }}>
+              {t("therapists.finishOnboarding")}
+            </h1>
+            <p style={{ fontSize: isD ? 13 : 12, color: "var(--ds-text-mid)" }}>
+              {t("therapists.finishOnboardingSub")}
+            </p>
+          </div>
+          <Card style={{
+            textAlign: "center", padding: "36px 20px", marginBottom: gap,
+          }} className="ds-anim-fadeUp">
+            <Ic n="users" s={36} c={COLORS.textLight} />
+            <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)", marginTop: 12 }}>
+              {t("therapists.noTherapistYet")}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--ds-text-light)", marginTop: 4, marginBottom: 16 }}>
+              {t("therapists.noTherapistDesc")}
+            </p>
+            <Button variant="primary" size="sm" onClick={() => { setRetriageMode(true); setRetriageStep(0); }}>
+              <Ic n="zap" s={14} c="white" />
+              {t("therapists.startMatch")}
+            </Button>
+          </Card>
+        </>
       )}
 
       {/* ── Suggested therapists ──────────────────────────── */}
       {suggestedTherapists.length > 0 && (
         <div style={{ marginTop: gap }} className="ds-anim-fadeUp">
           <h3 style={{ fontSize: isD ? 15 : 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: gap }}>
-            {t("therapists.suggestedTitle")}
+            {chosenTherapist ? t("therapists.suggestedTitle") : t("therapists.suggestedPageTitle")}
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap }}>
             {suggestedTherapists.map((th) => (
@@ -206,14 +393,335 @@ export const Therapists = ({
           {t("therapists.startMatch")}
         </Button>
       </Card>
+
+      {/* ── Booking BottomSheet ──────────────────────────── */}
+      {showBooking && chosenTherapist && (
+        <BookingSheet
+          therapist={chosenTherapist}
+          availability={availability}
+          sessionCredits={sessionCredits}
+          autoRenew={autoRenew}
+          selectedDate={selectedDate}
+          selectedSlot={selectedSlot}
+          recurringChecked={recurringChecked}
+          recurringInfo={recurringInfo}
+          heldWeeksCount={heldWeeksCount}
+          bookingStatus={bookingStatus}
+          bookedSessions={bookedSessions}
+          heldSlots={heldSlots}
+          isBooked={isBooked}
+          isHeld={isHeld}
+          onSelectDate={setSelectedDate}
+          onSelectSlot={setSelectedSlot}
+          onToggleRecurring={setRecurringChecked}
+          onConfirm={handleConfirmBooking}
+          onClose={() => { setShowBooking(false); setBookingStatus(null); }}
+          onGoCredits={() => { setShowBooking(false); navigate?.("credits"); }}
+          lang={lang}
+          dir={dir}
+          isD={isD}
+          t={t}
+        />
+      )}
     </div>
   );
 };
 
 // ─────────────────────────────────────────────────────────────
+// ── Booking BottomSheet ──────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+function BookingSheet({
+  therapist, availability, sessionCredits, autoRenew,
+  selectedDate, selectedSlot, recurringChecked, recurringInfo, heldWeeksCount,
+  bookingStatus, bookedSessions, heldSlots, isBooked, isHeld,
+  onSelectDate, onSelectSlot, onToggleRecurring, onConfirm, onClose, onGoCredits,
+  lang, dir, isD, t,
+}) {
+  const selDay = selectedDate != null ? availability[selectedDate] : null;
+  const hasSlotSelected = selDay && selectedSlot != null;
+  const canBook = hasSlotSelected && sessionCredits >= 1;
+  const totalCredits = autoRenew
+    ? 1
+    : (recurringChecked && recurringInfo.count > 1 ? recurringInfo.count : 1);
+
+  // Success state
+  if (bookingStatus === "success") {
+    return (
+      <BottomSheet onClose={onClose}>
+        <div style={{ textAlign: "center", padding: "30px 16px" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: `${COLORS.primary}18`, display: "flex",
+            alignItems: "center", justifyContent: "center", margin: "0 auto 16px",
+          }}>
+            <Ic n="check" s={28} c={COLORS.primary} />
+          </div>
+          <p className="ds-heading" style={{ fontSize: 18, color: "var(--ds-text)", marginBottom: 6 }}>
+            {t("therapists.bookingSuccess")}
+          </p>
+          {autoRenew && heldWeeksCount > 0 && (
+            <p style={{ fontSize: 12, color: "var(--ds-text-mid)", marginTop: 8 }}>
+              <Ic n="shield" s={12} c={COLORS.primary} /> {heldWeeksCount} {t("therapists.heldWeeks")}
+            </p>
+          )}
+        </div>
+      </BottomSheet>
+    );
+  }
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ direction: dir }}>
+        {/* Title */}
+        <h3 className="ds-heading" style={{ fontSize: isD ? 18 : 16, color: "var(--ds-text)", marginBottom: 4 }}>
+          {t("therapists.bookingTitle")}
+        </h3>
+        <p style={{ fontSize: 12, color: "var(--ds-text-mid)", marginBottom: 16 }}>
+          {t("therapists.sessionDuration")} — {loc(therapist.name, lang)}
+        </p>
+
+        {/* ── Date strip ────────────────────────────────────── */}
+        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--ds-text-mid)", marginBottom: 8, textTransform: "uppercase" }}>
+          {t("therapists.selectSlot")}
+        </p>
+        <div style={{
+          display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8,
+          WebkitOverflowScrolling: "touch",
+        }}>
+          {availability.map((d, idx) => {
+            const { weekday, day } = dateStripLabel(d.date, lang);
+            const isSelected = selectedDate === idx;
+            const hasSlots = d.slots.length > 0;
+            const rel = dateRelative(d.date, t);
+            return (
+              <button
+                key={d.dateStr}
+                onClick={() => { if (hasSlots) { onSelectDate(idx); onSelectSlot(null); } }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  padding: "8px 10px", minWidth: 52, borderRadius: RADIUS.md,
+                  border: isSelected ? `2px solid ${COLORS.primary}` : "1.5px solid var(--ds-card-border)",
+                  background: isSelected ? COLORS.primaryGhost : "var(--ds-card-bg)",
+                  cursor: hasSlots ? "pointer" : "default",
+                  opacity: hasSlots ? 1 : 0.35,
+                  fontFamily: "inherit", flexShrink: 0,
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 600, color: isSelected ? COLORS.primary : "var(--ds-text-mid)" }}>
+                  {rel || weekday}
+                </span>
+                <span style={{ fontSize: 16, fontWeight: 700, color: isSelected ? COLORS.primary : "var(--ds-text)", lineHeight: 1.4 }}>
+                  {day}
+                </span>
+                {hasSlots && (
+                  <span style={{
+                    width: 5, height: 5, borderRadius: "50%", marginTop: 3,
+                    background: isSelected ? COLORS.primary : COLORS.accent,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Time chips ────────────────────────────────────── */}
+        {selDay && (
+          <div style={{ marginTop: 14 }}>
+            <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 8 }}>
+              {formatDateFull(selDay.date, lang)}
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {selDay.slots.map((slotIdx) => {
+                const isSelected = selectedSlot === slotIdx;
+                const booked = isBooked(selDay.dateStr, slotIdx);
+                const held = isHeld(selDay.dateStr, slotIdx);
+                return (
+                  <button
+                    key={slotIdx}
+                    onClick={() => { if (!booked && !held) onSelectSlot(slotIdx); }}
+                    style={{
+                      padding: "8px 16px", borderRadius: RADIUS.pill, fontFamily: "inherit",
+                      fontSize: 13, fontWeight: 600, cursor: booked || held ? "default" : "pointer",
+                      border: booked
+                        ? `1.5px solid ${COLORS.success}`
+                        : held
+                          ? `1.5px dashed ${COLORS.primary}`
+                          : isSelected
+                            ? `2px solid ${COLORS.accent}`
+                            : "1.5px solid var(--ds-card-border)",
+                      background: booked
+                        ? `${COLORS.success}14`
+                        : held
+                          ? `${COLORS.primary}08`
+                          : isSelected
+                            ? `${COLORS.accent}18`
+                            : "var(--ds-card-bg)",
+                      color: booked
+                        ? COLORS.success
+                        : held
+                          ? COLORS.primary
+                          : isSelected
+                            ? COLORS.accent
+                            : "var(--ds-text)",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {booked && <Ic n="check" s={11} c={COLORS.success} />}{" "}
+                    {held && <Ic n="shield" s={11} c={COLORS.primary} />}{" "}
+                    {formatSlot(slotIdx, lang)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Session details + credit info ─────────────────── */}
+        {hasSlotSelected && (
+          <div style={{ marginTop: 18 }}>
+            {/* Selected summary */}
+            <Card variant="sm" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: RADIUS.sm,
+                background: COLORS.primaryGhost, display: "flex",
+                alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Ic n="cal" s={18} c={COLORS.primary} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
+                  {formatDateFull(selDay.date, lang)}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+                  {formatSlot(selectedSlot, lang)} · {t("therapists.sessionDuration")}
+                </p>
+              </div>
+            </Card>
+
+            {/* Credit cost */}
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "10px 12px", borderRadius: RADIUS.sm,
+              background: "var(--ds-cream)", marginBottom: 12,
+            }}>
+              <span style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+                <Ic n="wallet" s={13} c="var(--ds-text-mid)" /> {t("therapists.currentBalance")}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ds-text)" }}>
+                {sessionCredits}
+              </span>
+            </div>
+
+            {/* No credits warning */}
+            {sessionCredits < 1 && (
+              <div style={{
+                background: `${COLORS.danger}10`, borderRadius: RADIUS.sm,
+                padding: "10px 12px", marginBottom: 12,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <Ic n="alert-triangle" s={15} c={COLORS.danger} />
+                <span style={{ fontSize: 12, color: COLORS.danger, fontWeight: 600, flex: 1 }}>
+                  {t("therapists.noCredits")}
+                </span>
+                <Button variant="ghost" size="xs" onClick={onGoCredits}>
+                  {t("therapists.buyCreditsLink")}
+                </Button>
+              </div>
+            )}
+
+            {/* ── CREDIT-302: Recurring checkbox (non-subscribed, >1 credit) */}
+            {!autoRenew && sessionCredits > 1 && recurringInfo.count > 1 && (
+              <Card variant="tinted" style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <Checkbox
+                    checked={recurringChecked}
+                    onChange={(v) => onToggleRecurring(v)}
+                    label=""
+                  />
+                  <div style={{ flex: 1 }} onClick={() => onToggleRecurring(!recurringChecked)}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", lineHeight: 1.5, cursor: "pointer" }}>
+                      {t("therapists.recurringLabel")}
+                    </p>
+                    {recurringChecked && (
+                      <p style={{ fontSize: 11, color: COLORS.primary, fontWeight: 600, marginTop: 6 }}>
+                        {recurringInfo.count} {t("therapists.sessionsWillBook")} · {recurringInfo.count} {t("therapists.creditsCost")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* ── CREDIT-303: Auto-renew info card */}
+            {autoRenew && heldWeeksCount > 0 && (
+              <Card variant="tinted" style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: RADIUS.sm,
+                    background: `${COLORS.primary}14`, display: "flex",
+                    alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <Ic n="shield" s={16} c={COLORS.primary} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "var(--ds-text)", marginBottom: 3 }}>
+                      {t("therapists.autoRenewInfo")}
+                    </p>
+                    <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5 }}>
+                      {t("therapists.autoRenewDetail")}
+                    </p>
+                    <p style={{ fontSize: 11, color: COLORS.primary, fontWeight: 600, marginTop: 6 }}>
+                      <Ic n="shield" s={11} c={COLORS.primary} /> {heldWeeksCount} {t("therapists.heldWeeks")}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Credit cost summary */}
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 0", marginBottom: 8,
+            }}>
+              <span style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+                {totalCredits === 1 ? t("therapists.creditCost") : `${totalCredits} ${t("therapists.creditsCost")}`}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)" }}>
+                {sessionCredits} → {sessionCredits - totalCredits}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Actions ─────────────────────────────────────── */}
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <Button
+            variant="primary"
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              opacity: canBook ? 1 : 0.45,
+              cursor: canBook ? "pointer" : "not-allowed",
+            }}
+            disabled={!canBook}
+          >
+            <Ic n="check" s={14} c="white" />
+            {t("therapists.confirmBooking")}
+          </Button>
+          <Button variant="ghost2" onClick={onClose} style={{ flexShrink: 0 }}>
+            {t("action.cancel")}
+          </Button>
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // ── Chosen therapist card (rich, gradient) ───────────────────
 // ─────────────────────────────────────────────────────────────
-function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, onBook, onManage }) {
+function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, sessionCredits, onBook, onManage }) {
   const name = loc(therapist.name, lang);
   const initials = name.split(" ").map((w) => w[0]).join("");
   const gap = isD ? 14 : 10;
@@ -313,7 +821,11 @@ function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, onB
               </Button>
             ) : (
               <Button variant="accent" size={isD ? "sm" : "xs"} onClick={onBook} style={{ flex: 1 }}>
+                <Ic n="wallet" s={12} c="white" />
                 {t("therapists.bookSession")}
+                {sessionCredits != null && (
+                  <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 4 }}>({sessionCredits})</span>
+                )}
               </Button>
             )}
             <Button variant="ghost" size={isD ? "sm" : "xs"} onClick={onManage} style={{

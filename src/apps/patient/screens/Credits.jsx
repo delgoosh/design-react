@@ -17,15 +17,14 @@ import { useLang, useIsDesktop, Ic } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 import { Card, Button, Tag } from "@ds";
 
-// ── Mock data ─────────────────────────────────────────────────
-const INITIAL_SESSION_CREDITS = 3;
-
-export const Credits = ({ chatCredit = 20, setChatCredit }) => {
+export const Credits = ({
+  chatCredit = 20, setChatCredit,
+  sessionCredits = 3, setSessionCredits,
+  autoRenew = true, setAutoRenew,
+}) => {
   const { t, dir } = useLang();
   const isD = useIsDesktop();
 
-  const [sessionCredits, setSessionCredits] = useState(INITIAL_SESSION_CREDITS);
-  const [subEnabled, setSubEnabled] = useState(true); // auto-renew ON by default
   const [voucher, setVoucher] = useState("");
   const [voucherMsg, setVoucherMsg] = useState(null); // null | { type: "success"|"error", text }
 
@@ -68,13 +67,13 @@ export const Credits = ({ chatCredit = 20, setChatCredit }) => {
         display: "flex",
         flexDirection: isD ? "row" : "column",
         gap,
-        marginBottom: !subEnabled ? 0 : gap + 4,
+        marginBottom: !autoRenew ? 0 : gap + 4,
       }}>
         {/* Session credits — teal gradient card with auto-renew toggle */}
         <SessionCreditCard
           credits={sessionCredits}
-          subEnabled={subEnabled}
-          onToggleSub={setSubEnabled}
+          autoRenew={autoRenew}
+          onToggleSub={(v) => setAutoRenew?.(v)}
           t={t}
           isD={isD}
           dir={dir}
@@ -93,7 +92,7 @@ export const Credits = ({ chatCredit = 20, setChatCredit }) => {
       </div>
 
       {/* ── Warning when auto-renew is OFF ────────────────── */}
-      {!subEnabled && (
+      {!autoRenew && (
         <div style={{
           background: `${COLORS.accent}14`, borderRadius: RADIUS.md,
           padding: "10px 12px", marginTop: gap, marginBottom: gap + 4,
@@ -115,19 +114,19 @@ export const Credits = ({ chatCredit = 20, setChatCredit }) => {
           <BuyCard
             title={t("credits.single")}
             sub={t("credits.singleSub")}
-            btnLabel={subEnabled ? t("credits.subscribe") : t("credits.buy")}
+            btnLabel={autoRenew ? t("credits.subscribe") : t("credits.buy")}
           />
           <BuyCard
             title={t("credits.pack4")}
             badge={t("credits.popularBadge")}
             badgeColor="accent"
-            btnLabel={subEnabled ? t("credits.subscribeBundle") : t("credits.buyBundle")}
+            btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
           />
           <BuyCard
             title={t("credits.pack6")}
             badge={t("credits.bestValueBadge")}
             badgeColor="success"
-            btnLabel={subEnabled ? t("credits.subscribeBundle") : t("credits.buyBundle")}
+            btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
           />
         </div>
       </div>
@@ -191,7 +190,7 @@ export const Credits = ({ chatCredit = 20, setChatCredit }) => {
 };
 
 // ── Session credit card (teal gradient) with auto-renew toggle ──
-function SessionCreditCard({ credits, subEnabled, onToggleSub, t, isD, dir }) {
+function SessionCreditCard({ credits, autoRenew, onToggleSub, t, isD, dir }) {
   const isRtl = dir === "rtl";
   return (
     <div style={{
@@ -232,7 +231,7 @@ function SessionCreditCard({ credits, subEnabled, onToggleSub, t, isD, dir }) {
           display: "flex", alignItems: "center", gap: 8,
           paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.15)",
         }}>
-          <ToggleSwitch checked={subEnabled} onChange={onToggleSub} light />
+          <ToggleSwitch checked={autoRenew} onChange={onToggleSub} light />
           <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
             {t("credits.subscriptionToggle")}
           </span>
