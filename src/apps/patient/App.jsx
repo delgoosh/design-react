@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
-import { MOCK_THERAPISTS, MOCK_NEXT_SESSION, MOCK_ASSIGNMENTS } from "@shared/components/onboarding/mockData.js";
+import { MOCK_THERAPISTS, MOCK_NEXT_SESSION, MOCK_ASSIGNMENTS, MOCK_TRANSACTIONS } from "@shared/components/onboarding/mockData.js";
 
 // Auth is shared — handles both apps
 import Auth from "@shared/components/Auth.jsx";
@@ -68,6 +68,26 @@ export const PatientApp = ({ skipAuth }) => {
   const [sessionCredits, setSessionCredits] = useState(3);
   const [autoRenew, setAutoRenew] = useState(true);     // auto-renew ON by default
 
+  // ── Transaction ledger ──────────────────────────────────
+  const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS);
+
+  const addTransaction = useCallback((type, creditDelta, extra = {}) => {
+    setTransactions((prev) => {
+      const balanceAfter = (prev.length > 0 ? prev[0].balanceAfter : sessionCredits) + creditDelta;
+      return [{
+        id: `tx${Date.now()}`,
+        type,
+        creditDelta,
+        balanceAfter,
+        date: new Date().toISOString(),
+        receiptAvailable: type === "purchase" || type === "auto_renew",
+        therapistName: null,
+        reasonCode: null,
+        ...extra,
+      }, ...prev];
+    });
+  }, [sessionCredits]);
+
   // ── Therapist state ────────────────────────────────────
   const [chosenTherapist, setChosenTherapist] = useState(MOCK_THERAPISTS[0]);
   const [suggestedTherapists, setSuggestedTherapists] = useState(MOCK_THERAPISTS.slice(1));
@@ -88,11 +108,50 @@ export const PatientApp = ({ skipAuth }) => {
         topic: { en: "Therapy session", fa: "جلسه درمان" },
         date: sessionData.date,
         time: sessionData.time,
+        dateISO: sessionData.dateISO,
+        slotIdx: sessionData.slotIdx,
+        dateStr: sessionData.dateStr,
+      });
+      addTransaction("booking", -1, {
+        description: sessionData.description || { en: "Session booked", fa: "رزرو جلسه" },
+        therapistName: therapist.name,
       });
     } else {
       setNextSession(MOCK_NEXT_SESSION(therapist));
     }
-  }, []);
+  }, [addTransaction]);
+
+  // ── Cancel session callback ────────────────────────────
+  // Returns { refunded: boolean } so the UI can show the right message
+  const handleCancelSession = useCallback((sessionInfo) => {
+    if (!sessionInfo?.dateISO) {
+      setNextSession(null);
+      return { refunded: false };
+    }
+    const hoursUntil = (new Date(sessionInfo.dateISO).getTime() - Date.now()) / 3600000;
+    const isFree = hoursUntil > 24;
+
+    if (isFree) {
+      setSessionCredits((s) => s + 1);
+      addTransaction("patient_cancel_refund", 1, {
+        description: { en: "Cancellation refund (>24h)", fa: "بازگشت اعتبار لغو (بیش از ۲۴ ساعت)" },
+        therapistName: sessionInfo.therapistName,
+        reasonCode: "patient_free",
+      });
+    } else {
+      addTransaction("patient_cancel_refund", 0, {
+        description: { en: "Late cancellation (<24h) — no refund", fa: "لغو دیرهنگام (کمتر از ۲۴ ساعت) — بدون بازگشت" },
+        therapistName: sessionInfo.therapistName,
+        reasonCode: "patient_late",
+      });
+    }
+
+    // Clear nextSession if this is the next session being cancelled
+    if (nextSession?.dateISO === sessionInfo.dateISO) {
+      setNextSession(null);
+    }
+    return { refunded: isFree };
+  }, [nextSession, addTransaction]);
 
   // ── Assignment state ─────────────────────────────────────
   const [assignments, setAssignments] = useState(MOCK_ASSIGNMENTS);
@@ -212,6 +271,8 @@ export const PatientApp = ({ skipAuth }) => {
     setSessionCredits,
     autoRenew,
     setAutoRenew,
+    transactions,
+    addTransaction,
   };
 
   // Therapist-specific props
@@ -221,6 +282,7 @@ export const PatientApp = ({ skipAuth }) => {
     nextSession,
     onChooseTherapist: handleChooseTherapist,
     onBookSession:     handleBookSession,
+    onCancelSession:   handleCancelSession,
     ...creditProps,
   };
 
@@ -275,6 +337,7 @@ export const PatientApp = ({ skipAuth }) => {
             {...chatProps}
             {...therapistProps}
             {...assignmentProps}
+            {...creditProps}
           />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (

@@ -21,8 +21,9 @@ export const Credits = ({
   chatCredit = 20, setChatCredit,
   sessionCredits = 3, setSessionCredits,
   autoRenew = true, setAutoRenew,
+  transactions = [], addTransaction,
 }) => {
-  const { t, dir } = useLang();
+  const { t, lang, dir } = useLang();
   const isD = useIsDesktop();
 
   const [voucher, setVoucher] = useState("");
@@ -42,11 +43,25 @@ export const Credits = ({
     if (!code) return;
     if (code === "VOUCH") {
       setSessionCredits((s) => s + 1);
+      addTransaction?.("voucher", 1, {
+        description: { en: "Voucher redeemed — VOUCH", fa: "کد تخفیف استفاده شد — VOUCH" },
+      });
       setVoucherMsg({ type: "success", text: t("credits.voucherSuccess") });
       setVoucher("");
     } else {
       setVoucherMsg({ type: "error", text: t("credits.voucherError") });
     }
+  };
+
+  // Buy handler
+  const handleBuy = (amount) => {
+    setSessionCredits((s) => s + amount);
+    const txType = autoRenew ? "auto_renew" : "purchase";
+    addTransaction?.(txType, amount, {
+      description: amount === 1
+        ? { en: `${autoRenew ? "Subscription" : "Purchased"} — 1 session credit`, fa: `${autoRenew ? "اشتراک" : "خرید"} — ۱ اعتبار جلسه` }
+        : { en: `${autoRenew ? "Subscription" : "Purchased"} — ${amount} session credits`, fa: `${autoRenew ? "اشتراک" : "خرید"} — ${amount} اعتبار جلسه` },
+    });
   };
 
   const pad = isD ? 24 : 12;
@@ -115,18 +130,21 @@ export const Credits = ({
             title={t("credits.single")}
             sub={t("credits.singleSub")}
             btnLabel={autoRenew ? t("credits.subscribe") : t("credits.buy")}
+            onBuy={() => handleBuy(1)}
           />
           <BuyCard
             title={t("credits.pack4")}
             badge={t("credits.popularBadge")}
             badgeColor="accent"
             btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
+            onBuy={() => handleBuy(4)}
           />
           <BuyCard
             title={t("credits.pack6")}
             badge={t("credits.bestValueBadge")}
             badgeColor="success"
             btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
+            onBuy={() => handleBuy(6)}
           />
         </div>
       </div>
@@ -172,7 +190,7 @@ export const Credits = ({
       </div>
 
       {/* ── Refund policy ─────────────────────────────────── */}
-      <Card variant="tinted">
+      <Card variant="tinted" style={{ marginBottom: gap + 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <Ic n="info" s={15} c="var(--ds-text-mid)" />
           <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>{t("credits.refundPolicy")}</h3>
@@ -185,6 +203,9 @@ export const Credits = ({
           {t("credits.requestRefund")}
         </Button>
       </Card>
+
+      {/* ── Transaction history ────────────────────────────── */}
+      <TransactionHistory transactions={transactions} lang={lang} dir={dir} isD={isD} t={t} />
     </div>
   );
 };
@@ -345,8 +366,164 @@ function ToggleSwitch({ checked, onChange, light }) {
   );
 }
 
+// ── Transaction history ─────────────────────────────────────
+function loc(obj, lang) {
+  if (typeof obj === "string") return obj;
+  return obj?.[lang] || obj?.en || "";
+}
+
+const TX_META = {
+  purchase:              { icon: "wallet",   color: COLORS.primary },
+  auto_renew:            { icon: "repeat",   color: COLORS.primary },
+  booking:               { icon: "cal",      color: COLORS.accent  },
+  patient_cancel_refund: { icon: "history",  color: COLORS.success },
+  therapist_cancel_refund: { icon: "history", color: COLORS.success },
+  voucher:               { icon: "gift",     color: COLORS.primary },
+};
+
+const TX_LABEL_KEY = {
+  purchase:              "credits.txPurchase",
+  auto_renew:            "credits.txAutoRenew",
+  booking:               "credits.txBooking",
+  patient_cancel_refund: "credits.txPatientCancelFree",
+  therapist_cancel_refund: "credits.txTherapistCancel",
+  voucher:               "credits.txVoucher",
+};
+
+function formatTxDate(iso, lang) {
+  const d = new Date(iso);
+  if (lang === "fa") return d.toLocaleDateString("fa-IR", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function downloadReceipt(tx, lang) {
+  const lines = [
+    "═══════════════════════════════════════",
+    "       DELGOOSH — RECEIPT",
+    "═══════════════════════════════════════",
+    "",
+    `Transaction ID:  ${tx.id}`,
+    `Date:            ${new Date(tx.date).toLocaleString(lang === "fa" ? "fa-IR" : "en-US")}`,
+    `Type:            ${tx.type}`,
+    `Description:     ${loc(tx.description, lang)}`,
+    `Credit change:   ${tx.creditDelta > 0 ? "+" : ""}${tx.creditDelta}`,
+    `Balance after:   ${tx.balanceAfter}`,
+    "",
+    "═══════════════════════════════════════",
+    "  Thank you for using Delgoosh!",
+    "═══════════════════════════════════════",
+  ].join("\n");
+
+  const blob = new Blob([lines], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `delgoosh-receipt-${tx.id}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function TransactionHistory({ transactions, lang, dir, isD, t }) {
+  const PAGE_SIZE = 5;
+  const [expanded, setExpanded] = useState(false);
+
+  if (!transactions || transactions.length === 0) return null;
+
+  const visible = expanded ? transactions : transactions.slice(0, PAGE_SIZE);
+  const hasMore = transactions.length > PAGE_SIZE;
+
+  return (
+    <div>
+      <h2 className="ds-heading" style={{ fontSize: isD ? 17 : 15, color: "var(--ds-text)", marginBottom: 10 }}>
+        {t("credits.transactionHistory")}
+      </h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {visible.map((tx) => {
+          const meta = TX_META[tx.type] || { icon: "wallet", color: "var(--ds-text-mid)" };
+          const deltaColor = tx.creditDelta > 0
+            ? COLORS.success
+            : tx.creditDelta < 0
+              ? COLORS.danger
+              : "var(--ds-text-light)";
+          const deltaPrefix = tx.creditDelta > 0 ? "+" : "";
+          const deltaLabel = tx.creditDelta === 0
+            ? t("credits.noRefund")
+            : tx.creditDelta > 0
+              ? `${Math.abs(tx.creditDelta)} ${t("credits.creditAdded")}`
+              : `${Math.abs(tx.creditDelta)} ${t("credits.creditUsed")}`;
+
+          return (
+            <Card key={tx.id} variant="sm" style={{
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              {/* Icon */}
+              <div style={{
+                width: 34, height: 34, borderRadius: RADIUS.sm, flexShrink: 0,
+                background: `${meta.color}14`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Ic n={meta.icon} s={16} c={meta.color} />
+              </div>
+
+              {/* Description + date */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {tx.description ? loc(tx.description, lang) : t(TX_LABEL_KEY[tx.type] || "credits.txPurchase")}
+                </p>
+                <p style={{ fontSize: 10, color: "var(--ds-text-light)" }}>
+                  {formatTxDate(tx.date, lang)}
+                </p>
+              </div>
+
+              {/* Delta + balance */}
+              <div style={{ textAlign: dir === "rtl" ? "left" : "right", flexShrink: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: deltaColor }}>
+                  {deltaPrefix}{tx.creditDelta}
+                </p>
+                <p style={{ fontSize: 9, color: "var(--ds-text-light)" }}>
+                  {deltaLabel}
+                </p>
+              </div>
+
+              {/* Receipt download */}
+              {tx.receiptAvailable && (
+                <button
+                  onClick={() => downloadReceipt(tx, lang)}
+                  title={t("credits.downloadReceipt")}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    flexShrink: 0, fontFamily: "inherit",
+                  }}
+                >
+                  <Ic n="download" s={14} c="var(--ds-text-mid)" />
+                </button>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+            width: "100%", marginTop: 8, padding: "8px 0",
+            background: "none", border: "1px solid var(--ds-border, rgba(255,255,255,.1))",
+            borderRadius: RADIUS.sm, cursor: "pointer",
+            fontSize: 12, fontWeight: 600, color: "var(--ds-text-mid)",
+            fontFamily: "inherit",
+          }}
+        >
+          <Ic n="chev" s={14} c="var(--ds-text-mid)" style={{ transform: expanded ? "rotate(90deg)" : "rotate(-90deg)" }} />
+          {expanded ? t("credits.showLess") : t("credits.showMore")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Buy card ──────────────────────────────────────────────────
-function BuyCard({ title, sub, badge, badgeColor, btnLabel }) {
+function BuyCard({ title, sub, badge, badgeColor, btnLabel, onBuy }) {
   return (
     <Card variant="sm" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -356,7 +533,7 @@ function BuyCard({ title, sub, badge, badgeColor, btnLabel }) {
         </div>
         {sub && <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 1 }}>{sub}</p>}
       </div>
-      <Button variant="primary" size="sm" style={{ flexShrink: 0 }}>
+      <Button variant="primary" size="sm" style={{ flexShrink: 0 }} onClick={onBuy}>
         {btnLabel}
       </Button>
     </Card>
