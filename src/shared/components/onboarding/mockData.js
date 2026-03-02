@@ -80,13 +80,21 @@ export const MOCK_THERAPISTS = [
 
 // ── Mock next session generator ──────────────────────────────
 // TODO(backend-integration): replace with real session data from API
-export const MOCK_NEXT_SESSION = (therapist) => ({
-  therapistId:   therapist.id,
-  therapistName: therapist.name,
-  topic: { en: "Anxiety management", fa: "مدیریت اضطراب" },
-  date:  { en: "Tue, Feb 25", fa: "سه‌شنبه ۶ اسفند" },
-  time:  { en: "10:00 AM", fa: "۱۰:۰۰ صبح" },
-});
+export const MOCK_NEXT_SESSION = (therapist) => {
+  // 48 hours from now — always in the free-cancellation window for demo
+  const d = new Date(Date.now() + 48 * 3600 * 1000);
+  return {
+    therapistId:   therapist.id,
+    therapistName: therapist.name,
+    topic: { en: "Anxiety management", fa: "مدیریت اضطراب" },
+    date:  { en: d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+             fa: d.toLocaleDateString("fa-IR", { weekday: "short", month: "short", day: "numeric" }) },
+    time:  { en: "10:00 AM", fa: "۱۰:۰۰ صبح" },
+    dateISO: d.toISOString(),
+    slotIdx: 2,
+    dateStr: d.toISOString().slice(0, 10),
+  };
+};
 
 // ── Mock assignments ─────────────────────────────────────────
 // TODO(backend-integration): replace with real assignment data from API
@@ -192,3 +200,48 @@ export const SCHEDULE_SLOTS = [
 
 // Day keys matching calendar.days i18n
 export const SCHEDULE_DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"];
+
+// ── Mock transactions (credit ledger) ────────────────────────
+// TODO(backend-integration): replace with real transaction history from API
+export const MOCK_TRANSACTIONS = [
+  {
+    id: "tx6", type: "booking", creditDelta: -1, balanceAfter: 3,
+    date: "2026-02-28T10:15:00",
+    description: { en: "Session booked — Dr. Mina Hosseini", fa: "رزرو جلسه — دکتر مینا حسینی" },
+    therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
+    reasonCode: null, receiptAvailable: false,
+  },
+  {
+    id: "tx5", type: "therapist_cancel_refund", creditDelta: 1, balanceAfter: 4,
+    date: "2026-02-23T16:00:00",
+    description: { en: "Therapist cancelled — credit returned", fa: "لغو توسط درمانگر — بازگشت اعتبار" },
+    therapistName: { en: "Dr. Arash Karimi", fa: "دکتر آرش کریمی" },
+    reasonCode: "therapist_cancel", receiptAvailable: false,
+  },
+  {
+    id: "tx4", type: "auto_renew", creditDelta: 1, balanceAfter: 3,
+    date: "2026-02-22T00:00:00",
+    description: { en: "Auto-renew credit", fa: "اعتبار تمدید خودکار" },
+    therapistName: null, reasonCode: null, receiptAvailable: true,
+  },
+  {
+    id: "tx3", type: "patient_cancel_refund", creditDelta: 1, balanceAfter: 2,
+    date: "2026-02-20T11:00:00",
+    description: { en: "Cancellation refund (>24h)", fa: "بازگشت اعتبار لغو (بیش از ۲۴ ساعت)" },
+    therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
+    reasonCode: "patient_free", receiptAvailable: false,
+  },
+  {
+    id: "tx2", type: "booking", creditDelta: -1, balanceAfter: 1,
+    date: "2026-02-18T14:30:00",
+    description: { en: "Session booked — Dr. Mina Hosseini", fa: "رزرو جلسه — دکتر مینا حسینی" },
+    therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
+    reasonCode: null, receiptAvailable: false,
+  },
+  {
+    id: "tx1", type: "purchase", creditDelta: 4, balanceAfter: 4,
+    date: "2026-02-15T09:00:00",
+    description: { en: "Purchased 4-credit bundle", fa: "خرید بسته ۴ اعتباره" },
+    therapistName: null, reasonCode: null, receiptAvailable: true,
+  },
+];

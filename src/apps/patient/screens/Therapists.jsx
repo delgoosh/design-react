@@ -105,6 +105,7 @@ export const Therapists = ({
   nextSession,
   onChooseTherapist,
   onBookSession,
+  onCancelSession,
   sessionCredits = 3,
   setSessionCredits,
   autoRenew = true,
@@ -126,6 +127,10 @@ export const Therapists = ({
   const [bookingStatus, setBookingStatus] = useState(null); // null | "success"
   const [bookedSessions, setBookedSessions] = useState([]);
   const [heldSlots, setHeldSlots] = useState([]);
+
+  // ── Manage & cancel state ─────────────────────────────────
+  const [showManage, setShowManage] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(null); // null | sessionInfo object
 
   const gap = isD ? 20 : 12;
   const pad = isD ? 28 : 14;
@@ -182,9 +187,20 @@ export const Therapists = ({
   const handleConfirmBooking = () => {
     if (selectedDate == null || selectedSlot == null || sessionCredits < 1) return;
     const selDay = availability[selectedDate];
+    // Build ISO date from selDay.date + SCHEDULE_SLOTS[selectedSlot]
+    const [hh, mm] = SCHEDULE_SLOTS[selectedSlot].split(":").map(Number);
+    const isoDate = new Date(selDay.date);
+    isoDate.setHours(hh, mm, 0, 0);
     const sessionData = {
       date: { en: formatDate(selDay.date, "en"), fa: formatDate(selDay.date, "fa") },
       time: { en: formatSlot(selectedSlot, "en"), fa: formatSlot(selectedSlot, "fa") },
+      dateISO: isoDate.toISOString(),
+      slotIdx: selectedSlot,
+      dateStr: selDay.dateStr,
+      description: {
+        en: `Session booked — ${loc(chosenTherapist.name, "en")}`,
+        fa: `رزرو جلسه — ${loc(chosenTherapist.name, "fa")}`,
+      },
     };
 
     if (autoRenew) {
@@ -301,6 +317,7 @@ export const Therapists = ({
         <ChosenTherapistCard
           therapist={chosenTherapist}
           session={nextSession}
+          hasActiveSessions={!!nextSession || bookedSessions.length > 0}
           lang={lang}
           dir={dir}
           isD={isD}
@@ -308,7 +325,8 @@ export const Therapists = ({
           t={t}
           sessionCredits={sessionCredits}
           onBook={handleOpenBooking}
-          onManage={() => navigate?.("credits")}
+          onManage={() => setShowManage(true)}
+          onCancel={() => setShowCancelConfirm(nextSession)}
           onChange={() => {/* scroll to suggestions */}}
         />
       ) : (
@@ -341,26 +359,30 @@ export const Therapists = ({
       )}
 
       {/* ── Suggested therapists ──────────────────────────── */}
-      {suggestedTherapists.length > 0 && (
-        <div style={{ marginTop: gap }} className="ds-anim-fadeUp">
-          <h3 style={{ fontSize: isD ? 15 : 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: gap }}>
-            {chosenTherapist ? t("therapists.suggestedTitle") : t("therapists.suggestedPageTitle")}
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap }}>
-            {suggestedTherapists.map((th) => (
-              <SuggestedTherapistCard
-                key={th.id}
-                therapist={th}
-                lang={lang}
-                dir={dir}
-                isD={isD}
-                t={t}
-                onChoose={() => onChooseTherapist?.(th)}
-              />
-            ))}
+      {suggestedTherapists.length > 0 && (() => {
+        const hasActiveSessions = !!nextSession || bookedSessions.length > 0;
+        return (
+          <div style={{ marginTop: gap }} className="ds-anim-fadeUp">
+            <h3 style={{ fontSize: isD ? 15 : 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: gap }}>
+              {chosenTherapist ? t("therapists.suggestedTitle") : t("therapists.suggestedPageTitle")}
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap }}>
+              {suggestedTherapists.map((th) => (
+                <SuggestedTherapistCard
+                  key={th.id}
+                  therapist={th}
+                  lang={lang}
+                  dir={dir}
+                  isD={isD}
+                  t={t}
+                  disabled={hasActiveSessions}
+                  onChoose={() => onChooseTherapist?.(th)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Redo triage card ──────────────────────────────── */}
       <Card variant="ghost" style={{
@@ -417,6 +439,48 @@ export const Therapists = ({
           onConfirm={handleConfirmBooking}
           onClose={() => { setShowBooking(false); setBookingStatus(null); }}
           onGoCredits={() => { setShowBooking(false); navigate?.("credits"); }}
+          lang={lang}
+          dir={dir}
+          isD={isD}
+          t={t}
+        />
+      )}
+
+      {/* ── Manage Booking BottomSheet ─────────────────────── */}
+      {showManage && (
+        <ManageBookingSheet
+          nextSession={nextSession}
+          bookedSessions={bookedSessions}
+          heldSlots={heldSlots}
+          availability={availability}
+          therapist={chosenTherapist}
+          onCancelSession={(sessionInfo) => {
+            setShowManage(false);
+            setShowCancelConfirm(sessionInfo);
+          }}
+          onClose={() => setShowManage(false)}
+          lang={lang}
+          dir={dir}
+          isD={isD}
+          t={t}
+        />
+      )}
+
+      {/* ── Cancel Confirm BottomSheet ─────────────────────── */}
+      {showCancelConfirm && (
+        <CancelConfirmSheet
+          sessionInfo={showCancelConfirm}
+          onConfirm={() => {
+            const result = onCancelSession?.(showCancelConfirm);
+            // Remove from local bookedSessions too
+            if (showCancelConfirm.dateStr) {
+              setBookedSessions((prev) => prev.filter(
+                (b) => !(b.dateStr === showCancelConfirm.dateStr && b.slotIdx === showCancelConfirm.slotIdx)
+              ));
+            }
+            setShowCancelConfirm(null);
+          }}
+          onClose={() => setShowCancelConfirm(null)}
           lang={lang}
           dir={dir}
           isD={isD}
@@ -719,9 +783,234 @@ function BookingSheet({
 }
 
 // ─────────────────────────────────────────────────────────────
+// ── Manage Booking BottomSheet ───────────────────────────────
+// ─────────────────────────────────────────────────────────────
+function ManageBookingSheet({
+  nextSession, bookedSessions, heldSlots, availability, therapist,
+  onCancelSession, onClose, lang, dir, isD, t,
+}) {
+  // Collect all upcoming sessions: nextSession + locally booked + held
+  const sessions = [];
+
+  // Add the primary next session (from App state)
+  if (nextSession) {
+    sessions.push({
+      type: "booked",
+      dateStr: nextSession.dateStr || null,
+      slotIdx: nextSession.slotIdx ?? null,
+      dateISO: nextSession.dateISO || null,
+      therapistName: nextSession.therapistName,
+      date: nextSession.date,
+      time: nextSession.time,
+      topic: nextSession.topic,
+    });
+  }
+
+  // Add locally booked sessions (that aren't the nextSession)
+  bookedSessions.forEach((b) => {
+    if (nextSession?.dateStr === b.dateStr && nextSession?.slotIdx === b.slotIdx) return;
+    const dayInfo = availability.find((d) => d.dateStr === b.dateStr);
+    const dateObj = dayInfo?.date || new Date(b.dateStr);
+    const [hh, mm] = SCHEDULE_SLOTS[b.slotIdx].split(":").map(Number);
+    const isoDate = new Date(dateObj);
+    isoDate.setHours(hh, mm, 0, 0);
+    sessions.push({
+      type: "booked",
+      dateStr: b.dateStr,
+      slotIdx: b.slotIdx,
+      dateISO: isoDate.toISOString(),
+      therapistName: therapist?.name,
+      date: { en: formatDate(dateObj, "en"), fa: formatDate(dateObj, "fa") },
+      time: { en: formatSlot(b.slotIdx, "en"), fa: formatSlot(b.slotIdx, "fa") },
+      topic: null,
+    });
+  });
+
+  // Add held slots
+  heldSlots.forEach((h) => {
+    const dayInfo = availability.find((d) => d.dateStr === h.dateStr);
+    const dateObj = dayInfo?.date || new Date(h.dateStr);
+    sessions.push({
+      type: "held",
+      dateStr: h.dateStr,
+      slotIdx: h.slotIdx,
+      dateISO: null,
+      therapistName: therapist?.name,
+      date: { en: formatDate(dateObj, "en"), fa: formatDate(dateObj, "fa") },
+      time: { en: formatSlot(h.slotIdx, "en"), fa: formatSlot(h.slotIdx, "fa") },
+      topic: null,
+    });
+  });
+
+  // Sort by date
+  sessions.sort((a, b) => {
+    const da = a.dateStr || "";
+    const db = b.dateStr || "";
+    return da.localeCompare(db) || (a.slotIdx ?? 0) - (b.slotIdx ?? 0);
+  });
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ direction: dir }}>
+        <h3 className="ds-heading" style={{ fontSize: isD ? 18 : 16, color: "var(--ds-text)", marginBottom: 4 }}>
+          {t("therapists.manageTitle")}
+        </h3>
+        <p style={{ fontSize: 12, color: "var(--ds-text-mid)", marginBottom: 16 }}>
+          {t("therapists.manageSub")}
+        </p>
+
+        {sessions.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0" }}>
+            <Ic n="cal" s={28} c="var(--ds-text-light)" />
+            <p style={{ fontSize: 13, color: "var(--ds-text-light)", marginTop: 8 }}>
+              {t("therapists.noUpcoming")}
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {sessions.map((s, i) => (
+              <Card key={i} variant="sm" style={{
+                display: "flex", alignItems: "center", gap: 10,
+                border: s.type === "held" ? "1.5px dashed var(--ds-card-border)" : undefined,
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: RADIUS.sm, flexShrink: 0,
+                  background: s.type === "booked" ? `${COLORS.primary}14` : `${COLORS.textLight}10`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Ic n="cal" s={16} c={s.type === "booked" ? COLORS.primary : "var(--ds-text-light)"} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>
+                    {loc(s.date, lang)}
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>
+                    {loc(s.time, lang)}
+                    {s.topic ? ` · ${loc(s.topic, lang)}` : ""}
+                  </p>
+                </div>
+                <Tag color={s.type === "booked" ? "primary" : "default"} style={{
+                  fontSize: 10,
+                  ...(s.type === "held" ? { background: "transparent", border: `1px dashed var(--ds-text-light)`, color: "var(--ds-text-light)" } : {}),
+                }}>
+                  {s.type === "booked" ? t("therapists.statusBooked") : t("therapists.statusHeld")}
+                </Tag>
+                {s.type === "booked" && (
+                  <button
+                    onClick={() => onCancelSession(s)}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: 4,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <Ic n="x" s={16} c={COLORS.danger} />
+                  </button>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop: 16 }}>
+          <Button variant="ghost2" onClick={onClose} style={{ width: "100%" }}>
+            {t("action.close")}
+          </Button>
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── Cancel Confirm BottomSheet ───────────────────────────────
+// ─────────────────────────────────────────────────────────────
+function CancelConfirmSheet({ sessionInfo, onConfirm, onClose, lang, dir, isD, t }) {
+  const hoursUntil = sessionInfo?.dateISO
+    ? (new Date(sessionInfo.dateISO).getTime() - Date.now()) / 3600000
+    : 0;
+  const isFree = hoursUntil > 24;
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ direction: dir }}>
+        {/* Warning icon */}
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%", margin: "0 auto 12px",
+            background: isFree ? `${COLORS.success}14` : `${COLORS.danger}12`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Ic n={isFree ? "check" : "alert-triangle"} s={26} c={isFree ? COLORS.success : COLORS.danger} />
+          </div>
+          <h3 className="ds-heading" style={{ fontSize: isD ? 18 : 16, color: "var(--ds-text)", marginBottom: 4 }}>
+            {t("therapists.cancelSession")}
+          </h3>
+        </div>
+
+        {/* Session details */}
+        <Card variant="sm" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: RADIUS.sm, flexShrink: 0,
+            background: `${COLORS.primary}14`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Ic n="cal" s={16} c={COLORS.primary} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>
+              {sessionInfo?.date ? loc(sessionInfo.date, lang) : ""}
+            </p>
+            <p style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>
+              {sessionInfo?.time ? loc(sessionInfo.time, lang) : ""}
+              {sessionInfo?.therapistName ? ` · ${loc(sessionInfo.therapistName, lang)}` : ""}
+            </p>
+          </div>
+        </Card>
+
+        {/* 24h rule info */}
+        <div style={{
+          padding: "12px 14px", borderRadius: RADIUS.sm, marginBottom: 16,
+          background: isFree ? `${COLORS.success}10` : `${COLORS.danger}08`,
+          border: `1px solid ${isFree ? COLORS.success : COLORS.danger}30`,
+        }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <Ic n={isFree ? "check" : "alert-triangle"} s={15} c={isFree ? COLORS.success : COLORS.danger} style={{ marginTop: 1, flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: isFree ? COLORS.success : COLORS.danger, marginBottom: 3 }}>
+                {isFree ? t("therapists.cancelFreeInfo") : t("therapists.cancelLateWarning")}
+              </p>
+              <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5 }}>
+                {isFree ? t("therapists.cancelFreeDetail") : t("therapists.cancelLateDetail")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button
+            variant="primary"
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              background: isFree ? COLORS.primary : COLORS.danger,
+            }}
+          >
+            {isFree ? t("therapists.confirmCancelFree") : t("therapists.confirmCancelLate")}
+          </Button>
+          <Button variant="ghost2" onClick={onClose} style={{ flexShrink: 0 }}>
+            {t("therapists.keepSession")}
+          </Button>
+        </div>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // ── Chosen therapist card (rich, gradient) ───────────────────
 // ─────────────────────────────────────────────────────────────
-function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, sessionCredits, onBook, onManage }) {
+function ChosenTherapistCard({ therapist, session, hasActiveSessions, lang, dir, isD, isRtl, t, sessionCredits, onBook, onManage, onCancel }) {
   const name = loc(therapist.name, lang);
   const initials = name.split(" ").map((w) => w[0]).join("");
   const gap = isD ? 14 : 10;
@@ -816,23 +1105,39 @@ function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, ses
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8 }}>
             {session ? (
-              <Button variant="accent" size={isD ? "sm" : "xs"} onClick={onManage} style={{ flex: 1 }}>
-                {t("therapists.manageBooking")}
-              </Button>
+              <>
+                <Button variant="accent" size={isD ? "sm" : "xs"} onClick={onManage} style={{ flex: 1 }}>
+                  {t("therapists.manageBooking")}
+                </Button>
+                <Button variant="ghost" size={isD ? "sm" : "xs"} onClick={onCancel} style={{
+                  color: "#ff9b8a", borderColor: "rgba(255,155,138,0.35)",
+                }}>
+                  {t("therapists.cancelSession")}
+                </Button>
+              </>
             ) : (
-              <Button variant="accent" size={isD ? "sm" : "xs"} onClick={onBook} style={{ flex: 1 }}>
-                <Ic n="wallet" s={12} c="white" />
-                {t("therapists.bookSession")}
-                {sessionCredits != null && (
-                  <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 4 }}>({sessionCredits})</span>
-                )}
-              </Button>
+              <>
+                <Button variant="accent" size={isD ? "sm" : "xs"} onClick={onBook} style={{ flex: 1 }}>
+                  <Ic n="wallet" s={12} c="white" />
+                  {t("therapists.bookSession")}
+                  {sessionCredits != null && (
+                    <span style={{ fontSize: 10, opacity: 0.8, marginLeft: 4 }}>({sessionCredits})</span>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size={isD ? "sm" : "xs"}
+                  onClick={() => {}}
+                  disabled={hasActiveSessions}
+                  style={{
+                    color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.2)",
+                    ...(hasActiveSessions ? { opacity: 0.35, cursor: "not-allowed" } : {}),
+                  }}
+                >
+                  {t("therapists.changeTherapist")}
+                </Button>
+              </>
             )}
-            <Button variant="ghost" size={isD ? "sm" : "xs"} onClick={onManage} style={{
-              color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.2)",
-            }}>
-              {t("therapists.changeTherapist")}
-            </Button>
           </div>
         </div>
       </Card>
@@ -843,7 +1148,7 @@ function ChosenTherapistCard({ therapist, session, lang, dir, isD, isRtl, t, ses
 // ─────────────────────────────────────────────────────────────
 // ── Suggested therapist card (compact) ───────────────────────
 // ─────────────────────────────────────────────────────────────
-function SuggestedTherapistCard({ therapist, lang, dir, isD, t, onChoose }) {
+function SuggestedTherapistCard({ therapist, lang, dir, isD, t, onChoose, disabled }) {
   const name = loc(therapist.name, lang);
   const initials = name.split(" ").map((w) => w[0]).join("");
 
@@ -876,9 +1181,23 @@ function SuggestedTherapistCard({ therapist, lang, dir, isD, t, onChoose }) {
       </div>
 
       {/* Choose button */}
-      <Button variant="ghost" size="xs" onClick={onChoose} style={{ width: "100%" }}>
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={disabled ? undefined : onChoose}
+        disabled={disabled}
+        style={{
+          width: "100%",
+          ...(disabled ? { opacity: 0.4, cursor: "not-allowed" } : {}),
+        }}
+      >
         {t("therapists.chooseTherapist")}
       </Button>
+      {disabled && (
+        <p style={{ fontSize: 10, color: "var(--ds-text-light)", textAlign: "center", marginTop: -4 }}>
+          {t("therapists.cancelSessionsFirst")}
+        </p>
+      )}
     </Card>
   );
 }
