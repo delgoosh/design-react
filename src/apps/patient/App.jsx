@@ -109,7 +109,7 @@ export const PatientApp = ({ skipAuth }) => {
         date: sessionData.date,
         time: sessionData.time,
         dateISO: sessionData.dateISO,
-        slotIdx: sessionData.slotIdx,
+        startTime: sessionData.startTime,
         dateStr: sessionData.dateStr,
       });
       addTransaction("booking", -1, {

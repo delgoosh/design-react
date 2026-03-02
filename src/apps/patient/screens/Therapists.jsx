@@ -8,7 +8,17 @@
 import { useState, useMemo } from "react";
 import { useLang, useIsDesktop, Card, Tag, Button, Avatar, StarRating, StepIndicator, Ic, BottomSheet, Checkbox, ProgressBar } from "@ds";
 import { COLORS, RADIUS } from "@ds";
-import { MOCK_THERAPISTS, SCHEDULE_SLOTS } from "@shared/components/onboarding/mockData.js";
+import { MOCK_THERAPISTS, MOCK_THERAPIST_AVAILABILITY } from "@shared/components/onboarding/mockData.js";
+import {
+  generateTherapistBlocks,
+  groupBlocksByDate,
+  getWeekStartDate,
+  toDateStr,
+  parseTimeToMinutes,
+  minutesToTime,
+  BLOCK_DURATION_MIN,
+  BOOKING_HORIZON_WEEKS,
+} from "@shared/utils/availability.js";
 import { StepQuestionnaire } from "@shared/components/onboarding/StepQuestionnaire.jsx";
 import { StepAiChat } from "@shared/components/onboarding/StepAiChat.jsx";
 
@@ -18,51 +28,18 @@ function loc(obj, lang) {
   return obj?.[lang] || obj?.en || "";
 }
 
-// ── Mock availability generator ──────────────────────────────
-// Deterministic pseudo-random based on therapist ID + date string
-function hashStr(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function generateAvailability(therapistId) {
-  const days = [];
-  const now = new Date();
-  // Start from tomorrow
-  for (let i = 1; i <= 14; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const dayOfWeek = d.getDay(); // 0=Sun
-    // Skip Fridays (5) as a realistic pattern
-    if (dayOfWeek === 5) {
-      days.push({ date: d, dateStr, slots: [] });
-      continue;
-    }
-    // Generate 4-7 available slots deterministically
-    const seed = hashStr(therapistId + dateStr);
-    const slots = [];
-    for (let s = 0; s < SCHEDULE_SLOTS.length; s++) {
-      if ((seed * (s + 1) * 7) % 10 < 6) slots.push(s);
-    }
-    days.push({ date: d, dateStr, slots });
-  }
-  return days;
-}
-
-// Format time slot for display
-function formatSlot(slotIdx, lang) {
-  const raw = SCHEDULE_SLOTS[slotIdx]; // e.g. "10:20"
-  if (lang === "fa") {
-    // Convert to Persian digits
-    return raw.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
-  }
-  // Convert to 12h for English
-  const [h, m] = raw.split(":").map(Number);
+// ── Format block time for display ────────────────────────────
+function formatBlockTime(timeStr, lang) {
+  if (lang === "fa") return timeStr.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+  const [h, m] = timeStr.split(":").map(Number);
   const ampm = h >= 12 ? "PM" : "AM";
   const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+function formatWeekLabel(weekStart, lang) {
+  if (lang === "fa") return weekStart.toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
+  return weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // Format date for display
@@ -121,12 +98,12 @@ export const Therapists = ({
 
   // ── Booking state ─────────────────────────────────────────
   const [showBooking, setShowBooking] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // index into availability
-  const [selectedSlot, setSelectedSlot] = useState(null); // slot index
+  const [selectedDate, setSelectedDate] = useState(null); // dateStr e.g. "2026-03-03"
+  const [selectedSlot, setSelectedSlot] = useState(null); // block start time e.g. "09:00"
   const [recurringChecked, setRecurringChecked] = useState(true);
   const [bookingStatus, setBookingStatus] = useState(null); // null | "success"
-  const [bookedSessions, setBookedSessions] = useState([]);
-  const [heldSlots, setHeldSlots] = useState([]);
+  const [bookedSessions, setBookedSessions] = useState([]); // [{ dateStr, startTime }]
+  const [heldSlots, setHeldSlots] = useState([]); // [{ dateStr, startTime }]
 
   // ── Manage & cancel state ─────────────────────────────────
   const [showManage, setShowManage] = useState(false);
@@ -135,44 +112,45 @@ export const Therapists = ({
   const gap = isD ? 20 : 12;
   const pad = isD ? 28 : 14;
 
-  // Generate availability for chosen therapist
-  const availability = useMemo(
-    () => chosenTherapist ? generateAvailability(chosenTherapist.id) : [],
-    [chosenTherapist?.id]
-  );
+  // Generate block-based availability for chosen therapist (CREDIT-201/202)
+  const therapistAvail = chosenTherapist ? MOCK_THERAPIST_AVAILABILITY[chosenTherapist.id] : null;
+  const bookedSet = useMemo(() => new Set(bookedSessions.map((b) => `${b.dateStr}|${b.startTime}`)), [bookedSessions]);
+  const heldSet = useMemo(() => new Set(heldSlots.map((h) => `${h.dateStr}|${h.startTime}`)), [heldSlots]);
 
-  // Compute recurring count (same weekday + same time slot in future weeks)
+  const allBlocks = useMemo(
+    () => therapistAvail ? generateTherapistBlocks(therapistAvail, bookedSet, heldSet) : [],
+    [therapistAvail, bookedSet, heldSet],
+  );
+  const blocksByDate = useMemo(() => groupBlocksByDate(allBlocks), [allBlocks]);
+
+  // Compute recurring count (same weekday + same start time in future weeks)
   const recurringInfo = useMemo(() => {
-    if (selectedDate == null || selectedSlot == null) return { count: 0, dates: [] };
-    const selDay = availability[selectedDate];
-    if (!selDay) return { count: 0, dates: [] };
-    const selWeekday = selDay.date.getDay();
-    // Find all future days with same weekday + same slot available
-    const matchingDates = [selDay]; // include the selected one
-    for (let i = selectedDate + 1; i < availability.length; i++) {
-      const d = availability[i];
-      if (d.date.getDay() === selWeekday && d.slots.includes(selectedSlot)) {
-        matchingDates.push(d);
-      }
+    if (!selectedDate || !selectedSlot) return { count: 0, dates: [] };
+    const selDayObj = blocksByDate.find((d) => d.dateStr === selectedDate);
+    if (!selDayObj) return { count: 0, dates: [] };
+    const selWeekday = new Date(selectedDate + "T12:00:00").getDay();
+    const matchingDates = [selDayObj];
+    for (const d of blocksByDate) {
+      if (d.dateStr <= selectedDate) continue;
+      if (new Date(d.dateStr + "T12:00:00").getDay() !== selWeekday) continue;
+      if (d.blocks.some((b) => b.start === selectedSlot && b.status === "open")) matchingDates.push(d);
     }
-    // Cap by available credits
     const maxByCredits = Math.min(matchingDates.length, sessionCredits);
     return { count: maxByCredits, dates: matchingDates.slice(0, maxByCredits) };
-  }, [selectedDate, selectedSlot, availability, sessionCredits]);
+  }, [selectedDate, selectedSlot, blocksByDate, sessionCredits]);
 
   // Held weeks count for auto-renew (future matching weeks in horizon)
   const heldWeeksCount = useMemo(() => {
-    if (selectedDate == null || selectedSlot == null) return 0;
-    const selDay = availability[selectedDate];
-    if (!selDay) return 0;
-    const selWeekday = selDay.date.getDay();
+    if (!selectedDate || !selectedSlot) return 0;
+    const selWeekday = new Date(selectedDate + "T12:00:00").getDay();
     let count = 0;
-    for (let i = selectedDate + 1; i < availability.length; i++) {
-      const d = availability[i];
-      if (d.date.getDay() === selWeekday && d.slots.includes(selectedSlot)) count++;
+    for (const d of blocksByDate) {
+      if (d.dateStr <= selectedDate) continue;
+      if (new Date(d.dateStr + "T12:00:00").getDay() !== selWeekday) continue;
+      if (d.blocks.some((b) => b.start === selectedSlot && b.status === "open")) count++;
     }
     return count;
-  }, [selectedDate, selectedSlot, availability]);
+  }, [selectedDate, selectedSlot, blocksByDate]);
 
   // ── Open booking sheet ──────────────────────────────────
   const handleOpenBooking = () => {
@@ -185,18 +163,21 @@ export const Therapists = ({
 
   // ── Confirm booking ────────────────────────────────────
   const handleConfirmBooking = () => {
-    if (selectedDate == null || selectedSlot == null || sessionCredits < 1) return;
-    const selDay = availability[selectedDate];
-    // Build ISO date from selDay.date + SCHEDULE_SLOTS[selectedSlot]
-    const [hh, mm] = SCHEDULE_SLOTS[selectedSlot].split(":").map(Number);
-    const isoDate = new Date(selDay.date);
+    if (!selectedDate || !selectedSlot || sessionCredits < 1) return;
+    const selDayObj = blocksByDate.find((d) => d.dateStr === selectedDate);
+    if (!selDayObj) return;
+    const dateObj = new Date(selectedDate + "T12:00:00");
+    const [hh, mm] = selectedSlot.split(":").map(Number);
+    const isoDate = new Date(dateObj);
     isoDate.setHours(hh, mm, 0, 0);
+    const endTime = minutesToTime(parseTimeToMinutes(selectedSlot) + BLOCK_DURATION_MIN);
     const sessionData = {
-      date: { en: formatDate(selDay.date, "en"), fa: formatDate(selDay.date, "fa") },
-      time: { en: formatSlot(selectedSlot, "en"), fa: formatSlot(selectedSlot, "fa") },
+      date: { en: formatDate(dateObj, "en"), fa: formatDate(dateObj, "fa") },
+      time: { en: formatBlockTime(selectedSlot, "en"), fa: formatBlockTime(selectedSlot, "fa") },
       dateISO: isoDate.toISOString(),
-      slotIdx: selectedSlot,
-      dateStr: selDay.dateStr,
+      startTime: selectedSlot,
+      endTime,
+      dateStr: selectedDate,
       description: {
         en: `Session booked — ${loc(chosenTherapist.name, "en")}`,
         fa: `رزرو جلسه — ${loc(chosenTherapist.name, "fa")}`,
@@ -206,25 +187,27 @@ export const Therapists = ({
     if (autoRenew) {
       // CREDIT-303: Deduct 1 credit, hold future slots
       setSessionCredits?.((s) => s - 1);
+      const selWeekday = dateObj.getDay();
       const newHeld = [];
-      for (let i = selectedDate + 1; i < availability.length; i++) {
-        const d = availability[i];
-        if (d.date.getDay() === selDay.date.getDay() && d.slots.includes(selectedSlot)) {
-          newHeld.push({ dateStr: d.dateStr, slotIdx: selectedSlot });
+      for (const d of blocksByDate) {
+        if (d.dateStr <= selectedDate) continue;
+        if (new Date(d.dateStr + "T12:00:00").getDay() !== selWeekday) continue;
+        if (d.blocks.some((b) => b.start === selectedSlot && b.status === "open")) {
+          newHeld.push({ dateStr: d.dateStr, startTime: selectedSlot });
         }
       }
       setHeldSlots((prev) => [...prev, ...newHeld]);
-      setBookedSessions((prev) => [...prev, { dateStr: selDay.dateStr, slotIdx: selectedSlot }]);
+      setBookedSessions((prev) => [...prev, { dateStr: selectedDate, startTime: selectedSlot }]);
     } else if (recurringChecked && sessionCredits > 1 && recurringInfo.count > 1) {
       // CREDIT-302: Book N sessions, deduct N credits
       const n = recurringInfo.count;
       setSessionCredits?.((s) => s - n);
-      const newBooked = recurringInfo.dates.map((d) => ({ dateStr: d.dateStr, slotIdx: selectedSlot }));
+      const newBooked = recurringInfo.dates.map((d) => ({ dateStr: d.dateStr, startTime: selectedSlot }));
       setBookedSessions((prev) => [...prev, ...newBooked]);
     } else {
       // CREDIT-301: Single booking
       setSessionCredits?.((s) => s - 1);
-      setBookedSessions((prev) => [...prev, { dateStr: selDay.dateStr, slotIdx: selectedSlot }]);
+      setBookedSessions((prev) => [...prev, { dateStr: selectedDate, startTime: selectedSlot }]);
     }
 
     onBookSession?.(chosenTherapist, sessionData);
@@ -235,9 +218,9 @@ export const Therapists = ({
     }, 1500);
   };
 
-  // Check if a slot is already booked
-  const isBooked = (dateStr, slotIdx) => bookedSessions.some((b) => b.dateStr === dateStr && b.slotIdx === slotIdx);
-  const isHeld = (dateStr, slotIdx) => heldSlots.some((h) => h.dateStr === dateStr && h.slotIdx === slotIdx);
+  // Check if a block is already booked/held
+  const isBooked = (dateStr, startTime) => bookedSet.has(`${dateStr}|${startTime}`);
+  const isHeld = (dateStr, startTime) => heldSet.has(`${dateStr}|${startTime}`);
 
   // ── Re-triage flow ────────────────────────────────────────
   if (retriageMode) {
@@ -420,7 +403,7 @@ export const Therapists = ({
       {showBooking && chosenTherapist && (
         <BookingSheet
           therapist={chosenTherapist}
-          availability={availability}
+          blocksByDate={blocksByDate}
           sessionCredits={sessionCredits}
           autoRenew={autoRenew}
           selectedDate={selectedDate}
@@ -429,10 +412,6 @@ export const Therapists = ({
           recurringInfo={recurringInfo}
           heldWeeksCount={heldWeeksCount}
           bookingStatus={bookingStatus}
-          bookedSessions={bookedSessions}
-          heldSlots={heldSlots}
-          isBooked={isBooked}
-          isHeld={isHeld}
           onSelectDate={setSelectedDate}
           onSelectSlot={setSelectedSlot}
           onToggleRecurring={setRecurringChecked}
@@ -452,7 +431,7 @@ export const Therapists = ({
           nextSession={nextSession}
           bookedSessions={bookedSessions}
           heldSlots={heldSlots}
-          availability={availability}
+          blocksByDate={blocksByDate}
           therapist={chosenTherapist}
           onCancelSession={(sessionInfo) => {
             setShowManage(false);
@@ -475,7 +454,7 @@ export const Therapists = ({
             // Remove from local bookedSessions too
             if (showCancelConfirm.dateStr) {
               setBookedSessions((prev) => prev.filter(
-                (b) => !(b.dateStr === showCancelConfirm.dateStr && b.slotIdx === showCancelConfirm.slotIdx)
+                (b) => !(b.dateStr === showCancelConfirm.dateStr && b.startTime === showCancelConfirm.startTime)
               ));
             }
             setShowCancelConfirm(null);
@@ -495,13 +474,25 @@ export const Therapists = ({
 // ── Booking BottomSheet ──────────────────────────────────────
 // ─────────────────────────────────────────────────────────────
 function BookingSheet({
-  therapist, availability, sessionCredits, autoRenew,
+  therapist, blocksByDate, sessionCredits, autoRenew,
   selectedDate, selectedSlot, recurringChecked, recurringInfo, heldWeeksCount,
-  bookingStatus, bookedSessions, heldSlots, isBooked, isHeld,
+  bookingStatus,
   onSelectDate, onSelectSlot, onToggleRecurring, onConfirm, onClose, onGoCredits,
   lang, dir, isD, t,
 }) {
-  const selDay = selectedDate != null ? availability[selectedDate] : null;
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Current week's days from blocksByDate
+  const weekStart = useMemo(() => getWeekStartDate(new Date(), weekOffset), [weekOffset]);
+  const weekDays = useMemo(() => {
+    const ws = toDateStr(weekStart);
+    const we = new Date(weekStart);
+    we.setDate(we.getDate() + 7);
+    const weStr = toDateStr(we);
+    return blocksByDate.filter((d) => d.dateStr >= ws && d.dateStr < weStr);
+  }, [blocksByDate, weekStart]);
+
+  const selDay = selectedDate ? blocksByDate.find((d) => d.dateStr === selectedDate) : null;
   const hasSlotSelected = selDay && selectedSlot != null;
   const canBook = hasSlotSelected && sessionCredits >= 1;
   const totalCredits = autoRenew
@@ -544,6 +535,41 @@ function BookingSheet({
           {t("therapists.sessionDuration")} — {loc(therapist.name, lang)}
         </p>
 
+        {/* ── Week navigator ─────────────────────────────────── */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 10,
+        }}>
+          <button
+            onClick={() => { if (weekOffset > 0) { setWeekOffset((o) => o - 1); onSelectDate(null); onSelectSlot(null); } }}
+            disabled={weekOffset === 0}
+            style={{
+              background: "none", border: "none", fontFamily: "inherit",
+              cursor: weekOffset > 0 ? "pointer" : "default",
+              opacity: weekOffset > 0 ? 1 : 0.3, display: "flex", padding: 4,
+            }}
+          >
+            <span style={{ display: "flex", transform: dir === "rtl" ? "scaleX(-1)" : undefined }}>
+              <Ic n="chev" s={16} c={COLORS.primary} />
+            </span>
+          </button>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", minWidth: 100, textAlign: "center" }}>
+            {t("calendar.weekOf")} {formatWeekLabel(weekStart, lang)}
+          </span>
+          <button
+            onClick={() => { if (weekOffset < BOOKING_HORIZON_WEEKS - 1) { setWeekOffset((o) => o + 1); onSelectDate(null); onSelectSlot(null); } }}
+            disabled={weekOffset >= BOOKING_HORIZON_WEEKS - 1}
+            style={{
+              background: "none", border: "none", fontFamily: "inherit",
+              cursor: weekOffset < BOOKING_HORIZON_WEEKS - 1 ? "pointer" : "default",
+              opacity: weekOffset < BOOKING_HORIZON_WEEKS - 1 ? 1 : 0.3, display: "flex", padding: 4,
+            }}
+          >
+            <span style={{ display: "flex", transform: dir === "rtl" ? undefined : "scaleX(-1)" }}>
+              <Ic n="chev" s={16} c={COLORS.primary} />
+            </span>
+          </button>
+        </div>
+
         {/* ── Date strip ────────────────────────────────────── */}
         <p style={{ fontSize: 11, fontWeight: 600, color: "var(--ds-text-mid)", marginBottom: 8, textTransform: "uppercase" }}>
           {t("therapists.selectSlot")}
@@ -552,22 +578,27 @@ function BookingSheet({
           display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8,
           WebkitOverflowScrolling: "touch",
         }}>
-          {availability.map((d, idx) => {
-            const { weekday, day } = dateStripLabel(d.date, lang);
-            const isSelected = selectedDate === idx;
-            const hasSlots = d.slots.length > 0;
-            const rel = dateRelative(d.date, t);
+          {weekDays.length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--ds-text-light)", padding: "12px 0" }}>
+              {t("calendar.noBlocksThisWeek")}
+            </p>
+          ) : weekDays.map((d) => {
+            const dateObj = new Date(d.dateStr + "T12:00:00");
+            const { weekday, day } = dateStripLabel(dateObj, lang);
+            const isSelected = selectedDate === d.dateStr;
+            const hasOpen = d.blocks.some((b) => b.status === "open");
+            const rel = dateRelative(dateObj, t);
             return (
               <button
                 key={d.dateStr}
-                onClick={() => { if (hasSlots) { onSelectDate(idx); onSelectSlot(null); } }}
+                onClick={() => { onSelectDate(d.dateStr); onSelectSlot(null); }}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "center",
                   padding: "8px 10px", minWidth: 52, borderRadius: RADIUS.md,
                   border: isSelected ? `2px solid ${COLORS.primary}` : "1.5px solid var(--ds-card-border)",
                   background: isSelected ? COLORS.primaryGhost : "var(--ds-card-bg)",
-                  cursor: hasSlots ? "pointer" : "default",
-                  opacity: hasSlots ? 1 : 0.35,
+                  cursor: "pointer",
+                  opacity: hasOpen ? 1 : 0.5,
                   fontFamily: "inherit", flexShrink: 0,
                   transition: "all 0.15s",
                 }}
@@ -578,7 +609,7 @@ function BookingSheet({
                 <span style={{ fontSize: 16, fontWeight: 700, color: isSelected ? COLORS.primary : "var(--ds-text)", lineHeight: 1.4 }}>
                   {day}
                 </span>
-                {hasSlots && (
+                {hasOpen && (
                   <span style={{
                     width: 5, height: 5, borderRadius: "50%", marginTop: 3,
                     background: isSelected ? COLORS.primary : COLORS.accent,
@@ -589,21 +620,21 @@ function BookingSheet({
           })}
         </div>
 
-        {/* ── Time chips ────────────────────────────────────── */}
+        {/* ── Time chips (block start times) ──────────────────── */}
         {selDay && (
           <div style={{ marginTop: 14 }}>
             <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 8 }}>
-              {formatDateFull(selDay.date, lang)}
+              {formatDateFull(new Date(selDay.dateStr + "T12:00:00"), lang)}
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {selDay.slots.map((slotIdx) => {
-                const isSelected = selectedSlot === slotIdx;
-                const booked = isBooked(selDay.dateStr, slotIdx);
-                const held = isHeld(selDay.dateStr, slotIdx);
+              {selDay.blocks.map((block) => {
+                const isSelected = selectedSlot === block.start;
+                const booked = block.status === "booked";
+                const held = block.status === "held";
                 return (
                   <button
-                    key={slotIdx}
-                    onClick={() => { if (!booked && !held) onSelectSlot(slotIdx); }}
+                    key={block.start}
+                    onClick={() => { if (!booked && !held) onSelectSlot(block.start); }}
                     style={{
                       padding: "8px 16px", borderRadius: RADIUS.pill, fontFamily: "inherit",
                       fontSize: 13, fontWeight: 600, cursor: booked || held ? "default" : "pointer",
@@ -633,7 +664,7 @@ function BookingSheet({
                   >
                     {booked && <Ic n="check" s={11} c={COLORS.success} />}{" "}
                     {held && <Ic n="shield" s={11} c={COLORS.primary} />}{" "}
-                    {formatSlot(slotIdx, lang)}
+                    {formatBlockTime(block.start, lang)}
                   </button>
                 );
               })}
@@ -655,10 +686,10 @@ function BookingSheet({
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
-                  {formatDateFull(selDay.date, lang)}
+                  {formatDateFull(new Date(selDay.dateStr + "T12:00:00"), lang)}
                 </p>
                 <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
-                  {formatSlot(selectedSlot, lang)} · {t("therapists.sessionDuration")}
+                  {formatBlockTime(selectedSlot, lang)} · {t("therapists.sessionDuration")}
                 </p>
               </div>
             </Card>
@@ -786,7 +817,7 @@ function BookingSheet({
 // ── Manage Booking BottomSheet ───────────────────────────────
 // ─────────────────────────────────────────────────────────────
 function ManageBookingSheet({
-  nextSession, bookedSessions, heldSlots, availability, therapist,
+  nextSession, bookedSessions, heldSlots, blocksByDate, therapist,
   onCancelSession, onClose, lang, dir, isD, t,
 }) {
   // Collect all upcoming sessions: nextSession + locally booked + held
@@ -797,7 +828,7 @@ function ManageBookingSheet({
     sessions.push({
       type: "booked",
       dateStr: nextSession.dateStr || null,
-      slotIdx: nextSession.slotIdx ?? null,
+      startTime: nextSession.startTime ?? null,
       dateISO: nextSession.dateISO || null,
       therapistName: nextSession.therapistName,
       date: nextSession.date,
@@ -808,45 +839,43 @@ function ManageBookingSheet({
 
   // Add locally booked sessions (that aren't the nextSession)
   bookedSessions.forEach((b) => {
-    if (nextSession?.dateStr === b.dateStr && nextSession?.slotIdx === b.slotIdx) return;
-    const dayInfo = availability.find((d) => d.dateStr === b.dateStr);
-    const dateObj = dayInfo?.date || new Date(b.dateStr);
-    const [hh, mm] = SCHEDULE_SLOTS[b.slotIdx].split(":").map(Number);
+    if (nextSession?.dateStr === b.dateStr && nextSession?.startTime === b.startTime) return;
+    const dateObj = new Date(b.dateStr + "T12:00:00");
+    const [hh, mm] = b.startTime.split(":").map(Number);
     const isoDate = new Date(dateObj);
     isoDate.setHours(hh, mm, 0, 0);
     sessions.push({
       type: "booked",
       dateStr: b.dateStr,
-      slotIdx: b.slotIdx,
+      startTime: b.startTime,
       dateISO: isoDate.toISOString(),
       therapistName: therapist?.name,
       date: { en: formatDate(dateObj, "en"), fa: formatDate(dateObj, "fa") },
-      time: { en: formatSlot(b.slotIdx, "en"), fa: formatSlot(b.slotIdx, "fa") },
+      time: { en: formatBlockTime(b.startTime, "en"), fa: formatBlockTime(b.startTime, "fa") },
       topic: null,
     });
   });
 
   // Add held slots
   heldSlots.forEach((h) => {
-    const dayInfo = availability.find((d) => d.dateStr === h.dateStr);
-    const dateObj = dayInfo?.date || new Date(h.dateStr);
+    const dateObj = new Date(h.dateStr + "T12:00:00");
     sessions.push({
       type: "held",
       dateStr: h.dateStr,
-      slotIdx: h.slotIdx,
+      startTime: h.startTime,
       dateISO: null,
       therapistName: therapist?.name,
       date: { en: formatDate(dateObj, "en"), fa: formatDate(dateObj, "fa") },
-      time: { en: formatSlot(h.slotIdx, "en"), fa: formatSlot(h.slotIdx, "fa") },
+      time: { en: formatBlockTime(h.startTime, "en"), fa: formatBlockTime(h.startTime, "fa") },
       topic: null,
     });
   });
 
-  // Sort by date
+  // Sort by date then time
   sessions.sort((a, b) => {
     const da = a.dateStr || "";
     const db = b.dateStr || "";
-    return da.localeCompare(db) || (a.slotIdx ?? 0) - (b.slotIdx ?? 0);
+    return da.localeCompare(db) || (a.startTime || "").localeCompare(b.startTime || "");
   });
 
   return (
