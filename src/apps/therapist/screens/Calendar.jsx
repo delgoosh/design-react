@@ -6,7 +6,7 @@
 //   Edit  — CRUD availability ranges per weekday
 // ─────────────────────────────────────────────────────────────
 import { useState, useMemo } from "react";
-import { useLang, useIsDesktop, Card, Tag, Button, Ic } from "@ds";
+import { useLang, useIsDesktop, Card, Tag, Button, Ic, BottomSheet } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 import { SCHEDULE_DAYS } from "@shared/components/onboarding/mockData.js";
 import {
@@ -86,24 +86,33 @@ const STATUS_STYLE = {
   open:   { bg: `${COLORS.primary}28`, border: COLORS.primary, color: COLORS.primary, label: "open" },
   held:   { bg: `${COLORS.primary}18`, border: COLORS.primary, color: COLORS.primary, label: "heldBlock", dash: true },
   booked: { bg: `${COLORS.accent}28`, border: COLORS.accent, color: COLORS.accent, label: "booked" },
+  off:    { bg: `${COLORS.danger}14`, border: COLORS.danger, color: COLORS.danger, label: "offBlock", dash: true },
 };
 
 // ── Main component ───────────────────────────────────────────
 
 export const Calendar = ({
   availability, setAvailability,
-  bookedBlocks = new Set(), heldBlocks = new Set(),
+  bookedBlocks = new Set(), setBookedBlocks,
+  heldBlocks = new Set(), setHeldBlocks,
+  bookedBlockInfo = {},
 }) => {
   const { t, lang, dir } = useLang();
   const isD = useIsDesktop();
   const [mode, setMode] = useState("view"); // "view" | "edit"
   const [weekOffset, setWeekOffset] = useState(0);
+  const [takeOff, setTakeOff] = useState(null); // { level, dateStr?, blockKey?, blocks[] }
+  const [offBlocks, setOffBlocks] = useState(new Set()); // taken-off block keys
 
-  // Generate all blocks
-  const allBlocks = useMemo(
-    () => generateTherapistBlocks(availability, bookedBlocks, heldBlocks, new Date()),
-    [availability, bookedBlocks, heldBlocks],
-  );
+  // Generate all blocks, then override status for taken-off blocks
+  const allBlocks = useMemo(() => {
+    const raw = generateTherapistBlocks(availability, bookedBlocks, heldBlocks, new Date());
+    if (offBlocks.size === 0) return raw;
+    return raw.map((b) => {
+      const key = `${b.date}|${b.start}`;
+      return offBlocks.has(key) ? { ...b, status: "off" } : b;
+    });
+  }, [availability, bookedBlocks, heldBlocks, offBlocks]);
 
   // Filter to current week
   const weekStart = useMemo(() => getWeekStartDate(new Date(), weekOffset), [weekOffset]);
@@ -131,6 +140,86 @@ export const Calendar = ({
   }, [weekBlocks, weekStart]);
 
   const openCount = weekBlocks.filter((b) => b.status === "open").length;
+  const allWeekOff = weekBlocks.length > 0 && weekBlocks.every((b) => b.status === "off");
+
+  // ── Take-off handlers ─────────────────────────────────────
+  const isWithin24Hours = (dateStr, startTime) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const [h, min] = startTime.split(":").map(Number);
+    const blockDate = new Date(y, m - 1, d, h, min);
+    return blockDate.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+  };
+
+  const handleTakeOff = (level, ctx = {}) => {
+    // Revert mode — restore off blocks back to open
+    if (ctx.revert || (level === "block" && ctx.status === "off")) {
+      let keysToRevert;
+      if (level === "week") {
+        keysToRevert = weekBlocks.filter((b) => b.status === "off").map((b) => `${b.date}|${b.start}`);
+      } else if (level === "day") {
+        keysToRevert = weekBlocks.filter((b) => b.date === ctx.dateStr && b.status === "off").map((b) => `${b.date}|${b.start}`);
+      } else {
+        keysToRevert = ctx.blockKey ? [ctx.blockKey] : [];
+      }
+      setTakeOff({ level, dateStr: ctx.dateStr, blockKey: ctx.blockKey, revert: true, blocks: [], allKeys: keysToRevert });
+      return;
+    }
+
+    let affected;
+    if (level === "week") {
+      affected = weekBlocks.filter((b) => b.status === "booked" || b.status === "held");
+    } else if (level === "day") {
+      affected = weekBlocks.filter((b) => b.date === ctx.dateStr && (b.status === "booked" || b.status === "held"));
+    } else {
+      const b = weekBlocks.find((bl) => `${bl.date}|${bl.start}` === ctx.blockKey);
+      affected = b && b.status !== "open" ? [b] : [];
+    }
+    let allKeys;
+    if (level === "week") {
+      allKeys = weekBlocks.filter((b) => b.status !== "off").map((b) => `${b.date}|${b.start}`);
+    } else if (level === "day") {
+      allKeys = weekBlocks.filter((b) => b.date === ctx.dateStr && b.status !== "off").map((b) => `${b.date}|${b.start}`);
+    } else {
+      allKeys = ctx.blockKey ? [ctx.blockKey] : [];
+    }
+    setTakeOff({ level, dateStr: ctx.dateStr, blockKey: ctx.blockKey, blockStatus: ctx.status, blocks: affected, allKeys });
+  };
+
+  const handleConfirmTakeOff = () => {
+    if (!takeOff) return;
+    // Revert mode: remove from offBlocks to restore
+    if (takeOff.revert) {
+      setOffBlocks((prev) => {
+        const next = new Set(prev);
+        (takeOff.allKeys || []).forEach((k) => next.delete(k));
+        return next;
+      });
+      setTakeOff(null);
+      return;
+    }
+    // Remove from booked/held
+    const keysToRemove = takeOff.blocks.map((b) => `${b.date}|${b.start}`);
+    if (setBookedBlocks) {
+      setBookedBlocks((prev) => {
+        const next = new Set(prev);
+        keysToRemove.forEach((k) => next.delete(k));
+        return next;
+      });
+    }
+    if (setHeldBlocks) {
+      setHeldBlocks((prev) => {
+        const next = new Set(prev);
+        keysToRemove.forEach((k) => next.delete(k));
+        return next;
+      });
+    }
+    setOffBlocks((prev) => {
+      const next = new Set(prev);
+      (takeOff.allKeys || []).forEach((k) => next.add(k));
+      return next;
+    });
+    setTakeOff(null);
+  };
   const pad = isD ? 24 : 12;
   const gap = isD ? 16 : 10;
 
@@ -173,6 +262,8 @@ export const Calendar = ({
           weekOffset={weekOffset}
           setWeekOffset={setWeekOffset}
           openCount={openCount}
+          allWeekOff={allWeekOff}
+          onTakeOff={handleTakeOff}
           isD={isD} gap={gap} dir={dir} lang={lang} t={t}
         />
       ) : (
@@ -183,20 +274,39 @@ export const Calendar = ({
           isD={isD} gap={gap} dir={dir} lang={lang} t={t}
         />
       )}
+
+      {/* Take-off confirmation sheet */}
+      {takeOff && (
+        <TakeOffSheet
+          takeOff={takeOff}
+          bookedBlockInfo={bookedBlockInfo}
+          isWithin24Hours={isWithin24Hours}
+          onConfirm={handleConfirmTakeOff}
+          onClose={() => setTakeOff(null)}
+          lang={lang} dir={dir} t={t}
+        />
+      )}
     </div>
   );
 };
 
 // ── Week View ────────────────────────────────────────────────
 
-function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, isD, gap, dir, lang, t }) {
+function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, allWeekOff, onTakeOff, isD, gap, dir, lang, t }) {
+  const atStart = weekOffset === 0;
+  const atEnd   = weekOffset >= BOOKING_HORIZON_WEEKS - 1;
   return (
     <>
       {/* Week navigator */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: gap }}>
-        <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 1))} disabled={weekOffset === 0}>
-          {dir === "rtl" ? "→" : "←"}
-        </Button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", gap: 2 }}>
+          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 4))} disabled={atStart}>
+            {dir === "rtl" ? "»" : "«"}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 1))} disabled={atStart}>
+            {dir === "rtl" ? "→" : "←"}
+          </Button>
+        </div>
         <div style={{ textAlign: "center" }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ds-text)" }}>
             {t("calendar.weekOf")} {formatWeekLabel(weekStart, lang)}
@@ -205,14 +315,30 @@ function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, 
             {openCount} {t("calendar.openBlocks")} {t("calendar.blocksCount")}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 1))} disabled={weekOffset >= BOOKING_HORIZON_WEEKS - 1}>
-          {dir === "rtl" ? "←" : "→"}
-        </Button>
+        <div style={{ display: "flex", gap: 2 }}>
+          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 1))} disabled={atEnd}>
+            {dir === "rtl" ? "←" : "→"}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 4))} disabled={atEnd}>
+            {dir === "rtl" ? "«" : "»"}
+          </Button>
+        </div>
       </div>
+
+      {/* Week take-off / restore button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onTakeOff("week", allWeekOff ? { revert: true } : {})}
+        style={{ width: "100%", marginBottom: gap, fontSize: 12, color: allWeekOff ? COLORS.primary : COLORS.danger }}
+      >
+        <Ic n={allWeekOff ? "check" : "x"} s={13} c={allWeekOff ? COLORS.primary : COLORS.danger} style={{ marginRight: 4, marginLeft: dir === "rtl" ? 4 : 0 }} />
+        {allWeekOff ? t("calendar.restoreWeek") : t("calendar.takeOffWeek")}
+      </Button>
 
       {/* Legend */}
       <div style={{ display: "flex", gap: 14, marginBottom: gap, flexWrap: "wrap" }}>
-        {["open", "held", "booked"].map((s) => (
+        {["open", "held", "booked", "off"].map((s) => (
           <div key={s} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{
               width: 14, height: 14, borderRadius: 4,
@@ -226,9 +352,9 @@ function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, 
 
       {/* Day-by-day blocks */}
       {isD ? (
-        <DesktopGrid weekByDay={weekByDay} lang={lang} t={t} dir={dir} />
+        <DesktopGrid weekByDay={weekByDay} onTakeOff={onTakeOff} lang={lang} t={t} dir={dir} />
       ) : (
-        <MobileList weekByDay={weekByDay} lang={lang} t={t} dir={dir} />
+        <MobileList weekByDay={weekByDay} onTakeOff={onTakeOff} lang={lang} t={t} dir={dir} />
       )}
     </>
   );
@@ -236,17 +362,28 @@ function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, 
 
 // ── Desktop: 7-column grid ───────────────────────────────────
 
-function DesktopGrid({ weekByDay, lang, t, dir }) {
+function DesktopGrid({ weekByDay, onTakeOff, lang, t, dir }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
       {/* Column headers */}
-      {weekByDay.map((day) => (
-        <div key={day.dateStr} style={{ textAlign: "center", padding: "6px 0", borderBottom: "1px solid var(--ds-card-border)" }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ds-text)" }}>
-            {formatDayHeader(day.date, lang)}
-          </p>
-        </div>
-      ))}
+      {weekByDay.map((day) => {
+        const allDayOff = day.blocks.length > 0 && day.blocks.every((b) => b.status === "off");
+        return (
+          <div key={day.dateStr} style={{ textAlign: "center", padding: "6px 0", borderBottom: "1px solid var(--ds-card-border)" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ds-text)" }}>
+              {formatDayHeader(day.date, lang)}
+            </p>
+            {day.blocks.length > 0 && (
+              <button
+                onClick={() => onTakeOff("day", allDayOff ? { dateStr: day.dateStr, revert: true } : { dateStr: day.dateStr })}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 9, color: allDayOff ? COLORS.primary : COLORS.danger, fontFamily: "inherit", padding: "2px 0" }}
+              >
+                {allDayOff ? t("calendar.restoreDay") : t("calendar.takeOffDay")}
+              </button>
+            )}
+          </div>
+        );
+      })}
       {/* Block cells */}
       {weekByDay.map((day) => (
         <div key={day.dateStr + "_blocks"} style={{ display: "flex", flexDirection: "column", gap: 4, minHeight: 80 }}>
@@ -258,11 +395,13 @@ function DesktopGrid({ weekByDay, lang, t, dir }) {
             return (
               <div
                 key={b.start}
+                onClick={() => onTakeOff("block", { blockKey: `${b.date}|${b.start}`, status: b.status })}
                 style={{
                   padding: "4px 6px", borderRadius: 6,
                   background: st.bg,
                   border: `1.5px ${st.dash ? "dashed" : "solid"} ${st.border}`,
                   textAlign: "center",
+                  cursor: "pointer",
                 }}
               >
                 <p style={{ fontSize: 10, fontWeight: 600, color: st.color }}>
@@ -282,14 +421,26 @@ function DesktopGrid({ weekByDay, lang, t, dir }) {
 
 // ── Mobile: day-by-day list ──────────────────────────────────
 
-function MobileList({ weekByDay, lang, t, dir }) {
+function MobileList({ weekByDay, onTakeOff, lang, t, dir }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {weekByDay.map((day) => (
+      {weekByDay.map((day) => {
+        const allDayOff = day.blocks.length > 0 && day.blocks.every((b) => b.status === "off");
+        return (
         <Card key={day.dateStr} variant="sm">
-          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: 6 }}>
-            {formatDayHeader(day.date, lang)}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
+              {formatDayHeader(day.date, lang)}
+            </p>
+            {day.blocks.length > 0 && (
+              <button
+                onClick={() => onTakeOff("day", allDayOff ? { dateStr: day.dateStr, revert: true } : { dateStr: day.dateStr })}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: allDayOff ? COLORS.primary : COLORS.danger, fontFamily: "inherit", fontWeight: 600, padding: "2px 6px" }}
+              >
+                {allDayOff ? t("calendar.restoreDay") : t("calendar.takeOffDay")}
+              </button>
+            )}
+          </div>
           {day.blocks.length === 0 ? (
             <p style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>{t("calendar.noBlocksThisWeek")}</p>
           ) : (
@@ -299,11 +450,13 @@ function MobileList({ weekByDay, lang, t, dir }) {
                 return (
                   <div
                     key={b.start}
+                    onClick={() => onTakeOff("block", { blockKey: `${b.date}|${b.start}`, status: b.status })}
                     style={{
                       display: "flex", alignItems: "center", gap: 6,
                       padding: "4px 10px", borderRadius: 20,
                       background: st.bg,
                       border: `1.5px ${st.dash ? "dashed" : "solid"} ${st.border}`,
+                      cursor: "pointer",
                     }}
                   >
                     <span style={{ fontSize: 12, fontWeight: 600, color: st.color }}>
@@ -312,7 +465,7 @@ function MobileList({ weekByDay, lang, t, dir }) {
                     <span style={{ fontSize: 10, color: "var(--ds-text-mid)" }}>
                       – {formatBlockTime(b.end, lang)}
                     </span>
-                    <Tag color={b.status === "booked" ? "accent" : b.status === "held" ? "muted" : "primary"} style={{ fontSize: 9 }}>
+                    <Tag color={b.status === "booked" ? "accent" : b.status === "off" ? "danger" : b.status === "held" ? "muted" : "primary"} style={{ fontSize: 9 }}>
                       {t(`calendar.${STATUS_STYLE[b.status].label}`)}
                     </Tag>
                   </div>
@@ -321,7 +474,8 @@ function MobileList({ weekByDay, lang, t, dir }) {
             </div>
           )}
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -471,6 +625,185 @@ function EditMode({ availability, setAvailability, setMode, isD, gap, dir, lang,
         </Button>
       </div>
     </div>
+  );
+}
+
+// ── Time Select ──────────────────────────────────────────────
+
+// ── Take-Off Sheet ────────────────────────────────────────────
+
+function TakeOffSheet({ takeOff, bookedBlockInfo, isWithin24Hours, onConfirm, onClose, lang, dir, t }) {
+  const [reason, setReason] = useState("vacation");
+  const { blocks, level, blockKey, blockStatus, revert } = takeOff;
+
+  // ── Revert mode: simple restore UI ──
+  if (revert) {
+    const restoreTitleKey = level === "block" ? "calendar.restoreBlock"
+      : level === "day" ? "calendar.restoreDay"
+      : "calendar.restoreWeek";
+    return (
+      <BottomSheet onClose={onClose}>
+        <div style={{ direction: dir, padding: "4px 0 8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: "50%",
+              background: `${COLORS.primary}18`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <Ic n="check" s={18} c={COLORS.primary} />
+            </div>
+            <p className="ds-heading" style={{ fontSize: 16, color: "var(--ds-text)" }}>
+              {t(restoreTitleKey)}
+            </p>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: 8,
+            background: `${COLORS.primary}12`, marginBottom: 14,
+          }}>
+            <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+              {t("calendar.restoreInfo")}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <Button variant="ghost" onClick={onClose} style={{ flex: 1 }}>
+              {t("action.cancel")}
+            </Button>
+            <Button variant="primary" onClick={onConfirm} style={{ flex: 2 }}>
+              {t("calendar.confirmRestore")}
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
+    );
+  }
+
+  // ── Take-off mode ──
+  const isOpenBlock = level === "block" && blockStatus === "open";
+
+  const totalAffected = blocks.length;
+  const penaltyBlocks = blocks.filter((b) => isWithin24Hours(b.date, b.start));
+  const penaltyCount = penaltyBlocks.length;
+  const hasPenalty = penaltyCount > 0;
+
+  const singleBlockInfo = level === "block" && blockKey ? bookedBlockInfo[blockKey] : null;
+
+  const reasonKeys = ["vacation", "illness", "training", "conference", "maternity", "paternity", "personal", "medical", "other"];
+
+  const titleKey = isOpenBlock
+    ? "calendar.markUnavailable"
+    : level === "block" ? "calendar.cancelBlock"
+    : level === "day" ? "calendar.takeOffDay"
+    : "calendar.takeOffWeek";
+
+  return (
+    <BottomSheet onClose={onClose}>
+      <div style={{ direction: dir, padding: "4px 0 8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            background: isOpenBlock ? `${COLORS.primary}18` : hasPenalty ? `${COLORS.danger}18` : `${COLORS.warn}18`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Ic n="x" s={18} c={isOpenBlock ? COLORS.primary : hasPenalty ? COLORS.danger : COLORS.warn} />
+          </div>
+          <p className="ds-heading" style={{ fontSize: 16, color: "var(--ds-text)" }}>
+            {t(titleKey)}
+          </p>
+        </div>
+
+        {singleBlockInfo && (
+          <div style={{ fontSize: 12, color: "var(--ds-text-mid)", marginBottom: 10 }}>
+            {t("calendar.patient")}: <strong style={{ color: "var(--ds-text)" }}>{singleBlockInfo.patient[lang] || singleBlockInfo.patient.en}</strong>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", display: "block", marginBottom: 4 }}>
+            {t("calendar.selectReason")}
+          </label>
+          <select
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            style={{
+              width: "100%", padding: "8px 10px", fontSize: 13, fontFamily: "inherit",
+              borderRadius: 8, border: "1px solid var(--ds-card-border)",
+              background: "var(--ds-card-bg)", color: "var(--ds-text)",
+            }}
+          >
+            {reasonKeys.map((k) => (
+              <option key={k} value={k}>{t(`calendar.takeOffReasons.${k}`)}</option>
+            ))}
+          </select>
+        </div>
+
+        {isOpenBlock ? (
+          <div style={{
+            padding: "10px 12px", borderRadius: 8,
+            background: `${COLORS.primary}12`, marginBottom: 14,
+          }}>
+            <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+              {t("calendar.blockWillBeUnavailable")}
+            </p>
+          </div>
+        ) : (
+          <>
+            {totalAffected === 0 ? (
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: `${COLORS.primary}12`, marginBottom: 14,
+              }}>
+                <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+                  {t("calendar.noSessionsAffected")}
+                </p>
+              </div>
+            ) : (
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: `${COLORS.warn}14`, marginBottom: 10,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)", marginBottom: 4 }}>
+                  {totalAffected} {t("calendar.affectedSessions")}
+                </p>
+                <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5 }}>
+                  {t("calendar.reschedulingNote")}
+                </p>
+              </div>
+            )}
+
+            {hasPenalty && (
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: `${COLORS.danger}12`, marginBottom: 14,
+                border: `1px solid ${COLORS.danger}30`,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: COLORS.danger, marginBottom: 4 }}>
+                  {penaltyCount} {t("calendar.penaltySessions")}
+                </p>
+                <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5 }}>
+                  {t("calendar.penaltyWarning")}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <Button variant="ghost" onClick={onClose} style={{ flex: 1 }}>
+            {isOpenBlock ? t("action.cancel") : t("calendar.keepSessions")}
+          </Button>
+          <Button
+            variant={hasPenalty ? "danger" : "primary"}
+            onClick={onConfirm}
+            style={{ flex: 2 }}
+          >
+            {isOpenBlock
+              ? t("calendar.confirmMarkUnavailable")
+              : level === "block" ? t("calendar.confirmCancelBlock")
+              : t("calendar.confirmTakeOff")}
+          </Button>
+        </div>
+      </div>
+    </BottomSheet>
   );
 }
 
