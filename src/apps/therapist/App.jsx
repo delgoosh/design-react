@@ -6,7 +6,58 @@
 import { useState, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
-import { MOCK_THERAPIST_AVAILABILITY } from "@shared/components/onboarding/mockData.js";
+import { MOCK_THERAPIST_AVAILABILITY, MOCK_THERAPISTS } from "@shared/components/onboarding/mockData.js";
+import {
+  generateTherapistBlocks,
+  toDateStr,
+} from "@shared/utils/availability.js";
+
+// ── Mock booked/held data ─────────────────────────────────────
+// Generates realistic block keys based on actual t1 availability
+function createMockBlockData() {
+  const avail = MOCK_THERAPIST_AVAILABILITY["t1"];
+  const blocks = generateTherapistBlocks(avail, new Set(), new Set(), new Date());
+  // Pick specific blocks to mark as booked/held (spread across first 3 weeks)
+  const booked = new Set();
+  const held = new Set();
+  const info = {};
+  const patients = [
+    { en: "Sara Mohammadi", fa: "سارا محمدی" },
+    { en: "Ali Rezaei", fa: "علی رضایی" },
+    { en: "Maryam Hosseini", fa: "مریم حسینی" },
+    { en: "Nima Tavakoli", fa: "نیما توکلی" },
+    { en: "Zahra Karimi", fa: "زهرا کریمی" },
+  ];
+  // Mark blocks: pick first block of Mon, 2nd of Tue, 1st of Wed, 2nd of Thu
+  // across weeks 0-2 to get a mix
+  let bookedIdx = 0;
+  const openBlocks = blocks.filter((b) => b.status === "open");
+  const seen = { mon: 0, tue: 0, wed: 0, thu: 0 };
+  for (const b of openBlocks) {
+    const key = `${b.date}|${b.start}`;
+    if (b.dayKey === "mon" && seen.mon < 2) {
+      if (seen.mon === 0) { booked.add(key); info[key] = { patient: patients[0] }; }
+      else { held.add(key); }
+      seen.mon++;
+    } else if (b.dayKey === "tue" && seen.tue < 2) {
+      if (seen.tue === 0) { booked.add(key); info[key] = { patient: patients[1] }; }
+      else { booked.add(key); info[key] = { patient: patients[3] }; }
+      seen.tue++;
+    } else if (b.dayKey === "wed" && seen.wed < 2) {
+      if (seen.wed === 0) { held.add(key); }
+      else { booked.add(key); info[key] = { patient: patients[2] }; }
+      seen.wed++;
+    } else if (b.dayKey === "thu" && seen.thu < 2) {
+      if (seen.thu === 0) { booked.add(key); info[key] = { patient: patients[4] }; }
+      else { held.add(key); }
+      seen.thu++;
+    }
+    if (booked.size + held.size >= 8) break;
+  }
+  return { booked, held, info };
+}
+
+const MOCK_BLOCK_DATA = createMockBlockData();
 
 // Auth is shared — handles both apps
 import Auth from "@shared/components/Auth.jsx";
@@ -51,8 +102,8 @@ export const TherapistApp = ({ skipAuth }) => {
 
   // ── Availability state (CREDIT-201/202) ──────────────────
   const [availability, setAvailability] = useState(MOCK_THERAPIST_AVAILABILITY["t1"]);
-  const [bookedBlocks, setBookedBlocks] = useState(new Set());
-  const [heldBlocks, setHeldBlocks]     = useState(new Set());
+  const [bookedBlocks, setBookedBlocks] = useState(MOCK_BLOCK_DATA.booked);
+  const [heldBlocks, setHeldBlocks]     = useState(MOCK_BLOCK_DATA.held);
 
   if (!authed) {
     return <Auth mode="therapist" onLogin={() => setAuthed(true)} />;
@@ -100,13 +151,13 @@ export const TherapistApp = ({ skipAuth }) => {
             </div>
           </aside>
           <main className="ds-main">
-            <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} />
+            <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} bookedBlockInfo={MOCK_BLOCK_DATA.info} />
           </main>
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "var(--ds-bg)", position: "relative" }}>
-          <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} />
+          <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} bookedBlockInfo={MOCK_BLOCK_DATA.info} />
           <nav className="ds-bottom-nav">
             {mobileNavItems.map((item) => (
               <BottomNavItem
