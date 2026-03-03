@@ -7,7 +7,7 @@
 // TODO(backend-integration): all data is mock — replace with
 // real API calls for sessions, patients, notes, earnings, etc.
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, StatCard, SessionCard } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 
@@ -88,6 +88,8 @@ export const Dashboard = ({ setTab }) => {
   const isFa = lang === "fa";
 
   const [showNotifs, setShowNotifs] = useState(false);
+  const notesRef = useRef(null);
+  const scrollToNotes = () => notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   // Time-based greeting
   const hour = new Date().getHours();
@@ -109,56 +111,88 @@ export const Dashboard = ({ setTab }) => {
             {t("dashboard.today")} — {new Date().toLocaleDateString(isFa ? "fa-IR" : "en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
-        <div style={{ position: "relative" }}>
-          <button
-            onClick={() => setShowNotifs(!showNotifs)}
-            style={{
-              width: 42, height: 42, borderRadius: RADIUS.md, border: "1.5px solid var(--ds-card-border)",
-              background: "var(--ds-card-bg)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "var(--ds-shadow-stat)",
-            }}
-          >
-            <Ic n="bell" s={20} c="var(--ds-text-mid)" />
-            {MOCK.notifications.length > 0 && (
-              <span style={{
-                position: "absolute", top: -2, right: -2, width: 10, height: 10,
-                background: COLORS.accent, borderRadius: "50%", border: "2px solid var(--ds-card-bg)",
-              }} />
-            )}
-          </button>
-          {showNotifs && (
-            <div style={{
-              position: "absolute", top: 50, ...(dir === "rtl" ? { left: 0 } : { right: 0 }),
-              width: 300, background: "var(--ds-card-bg)", borderRadius: RADIUS.lg,
-              border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-card)",
-              padding: 12, zIndex: 10,
-            }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: 10 }}>
-                {t("dashboard.notifications")}
-              </p>
-              {MOCK.notifications.map((n) => (
-                <div key={n.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid var(--ds-cream)" }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.primary, flexShrink: 0, marginTop: 5 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 12, color: "var(--ds-text)", lineHeight: 1.4 }}>{loc(n.text, lang)}</p>
-                    <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 2 }}>{n.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Profile avatar — mobile only (not in bottom nav) */}
+          {!isD && (
+            <button
+              onClick={() => setTab?.("profile")}
+              style={{
+                width: 42, height: 42, borderRadius: "50%", border: "none",
+                background: "none", cursor: "pointer", padding: 0,
+              }}
+            >
+              <Avatar initials={loc(MOCK.initials, lang)} size={42} />
+            </button>
           )}
+          {/* Notification bell with dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowNotifs(!showNotifs)}
+              style={{
+                width: 42, height: 42, borderRadius: RADIUS.md, border: "1.5px solid var(--ds-card-border)",
+                background: "var(--ds-card-bg)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "var(--ds-shadow-stat)",
+              }}
+            >
+              <Ic n="bell" s={20} c="var(--ds-text-mid)" />
+              {MOCK.notifications.length > 0 && (
+                <span style={{
+                  position: "absolute", top: -2, right: -2, width: 10, height: 10,
+                  background: COLORS.accent, borderRadius: "50%", border: "2px solid var(--ds-card-bg)",
+                }} />
+              )}
+            </button>
+            {showNotifs && (
+              <div style={{
+                position: "absolute", top: 50, ...(dir === "rtl" ? { left: 0 } : { right: 0 }),
+                width: 300, background: "var(--ds-card-bg)", borderRadius: RADIUS.lg,
+                border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-card)",
+                padding: 12, zIndex: 10,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: 10 }}>
+                  {t("dashboard.notifications")}
+                </p>
+                {MOCK.notifications.map((n) => (
+                  <div key={n.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid var(--ds-cream)" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.primary, flexShrink: 0, marginTop: 5 }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 12, color: "var(--ds-text)", lineHeight: 1.4 }}>{loc(n.text, lang)}</p>
+                      <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 2 }}>{n.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Stat cards (on mobile these double as quick actions) ── */}
+      {/* ── Compact stat cards with CTAs ─────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: isD ? "repeat(4, 1fr)" : "repeat(2, 1fr)", gap, marginBottom: gap }}>
-        <StatCard icon="money"  value={loc(MOCK.stats.monthEarnings, lang)} label={t("dashboard.monthEarnings")} accentColor={COLORS.success}
-          onClick={!isD ? () => setTab?.("earnings") : undefined} sub={!isD ? t("earnings.requestWithdraw") : undefined} />
-        <StatCard icon="users"  value={MOCK.stats.activePatients} label={t("dashboard.activePatients")} accentColor={COLORS.primary}
-          onClick={!isD ? () => setTab?.("patients") : undefined} />
-        <StatCard icon="video"  value={MOCK.stats.weekSessions}   label={t("dashboard.weekSessions")}   accentColor={COLORS.primaryDark}
-          onClick={!isD ? () => setTab?.("calendar") : undefined} sub={!isD ? t("dashboard.viewCalendar") : undefined} />
-        <StatCard icon="edit"   value={MOCK.stats.pendingNotes}   label={t("dashboard.pendingNotes")}   accentColor={COLORS.warn} />
+        {[
+          { icon: "money", value: loc(MOCK.stats.monthEarnings, lang), label: t("dashboard.monthEarnings"), color: COLORS.success, cta: t("earnings.requestWithdraw"), onClick: () => setTab?.("earnings") },
+          { icon: "users", value: MOCK.stats.activePatients, label: t("dashboard.activePatients"), color: COLORS.primary, cta: t("nav.patients"), onClick: () => setTab?.("patients") },
+          { icon: "video", value: MOCK.stats.weekSessions,   label: t("dashboard.weekSessions"),   color: COLORS.primaryDark, cta: t("nav.calendar"), onClick: () => setTab?.("calendar") },
+          { icon: "edit",  value: MOCK.stats.pendingNotes,   label: t("dashboard.pendingNotes"),   color: COLORS.warn, cta: t("dashboard.pendingNotes"), onClick: scrollToNotes },
+        ].map((s, i) => (
+          <div key={i} onClick={s.onClick} role="button" tabIndex={0} style={{
+            background: "var(--ds-card-bg)", borderRadius: 14, padding: isD ? "12px 14px" : "10px 12px",
+            border: "1px solid var(--ds-card-border)", boxShadow: "var(--ds-shadow-stat)",
+            cursor: "pointer", display: "flex", flexDirection: "column", gap: 2,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                width: isD ? 32 : 28, height: isD ? 32 : 28, background: `${s.color}14`, borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Ic n={s.icon} s={isD ? 15 : 14} c={s.color} />
+              </div>
+              <p className="ds-heading" style={{ fontSize: isD ? 22 : 20, color: "var(--ds-text)", lineHeight: 1 }}>{s.value}</p>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>{s.label}</p>
+            <p style={{ fontSize: 10, color: s.color, fontWeight: 600 }}>{s.cta} →</p>
+          </div>
+        ))}
       </div>
 
       {/* ── Next session — full width ─────────────────────────── */}
@@ -184,40 +218,8 @@ export const Dashboard = ({ setTab }) => {
         )}
       </div>
 
-      {/* ── Quick actions — desktop only (on mobile, stat cards are tappable) */}
-      {isD && (
-        <div style={{ marginBottom: gap }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: "var(--ds-text)", marginBottom: 8 }}>
-            {t("dashboard.quickActions")}
-          </p>
-          <div style={{ display: "flex", gap: 10 }}>
-            {[
-              { icon: "cal",   label: t("dashboard.viewCalendar"),   color: COLORS.primary,     tab: "calendar" },
-              { icon: "users", label: t("nav.patients"),             color: COLORS.primaryDark, tab: "patients" },
-              { icon: "money", label: t("earnings.requestWithdraw"), color: COLORS.success,     tab: "earnings" },
-            ].map((a, i) => (
-              <button key={i} onClick={() => setTab?.(a.tab)} style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                padding: "14px 16px", borderRadius: RADIUS.sm, border: "1px solid var(--ds-card-border)",
-                background: "var(--ds-card-bg)", cursor: "pointer", minWidth: 80, flex: 1,
-                boxShadow: "var(--ds-shadow-stat)", fontFamily: "inherit",
-              }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: RADIUS.sm,
-                  background: `${a.color}14`, display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Ic n={a.icon} s={18} c={a.color} />
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ds-text)", whiteSpace: "nowrap" }}>
-                  {a.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Pending notes — with transcript/AI summary access ── */}
+      <div ref={notesRef} />
       <Card style={{ marginBottom: gap }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
