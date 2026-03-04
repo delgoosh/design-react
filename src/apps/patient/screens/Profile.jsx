@@ -3,9 +3,10 @@
 // ─────────────────────────────────────────────────────────────
 // Props: navigate
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
-import { useLang, useIsDesktop, Card, Avatar, Ic, LanguageToggle, BottomSheet, Button, Checkbox, AvatarUpload, Tag } from "@ds";
+import { useState, useMemo } from "react";
+import { useLang, useIsDesktop, Card, Avatar, Ic, LanguageToggle, BottomSheet, Button, Checkbox, AvatarUpload, Tag, Select } from "@ds";
 import { COLORS, RADIUS } from "@ds";
+import { getAllTimezones, getTimezoneOffset } from "@shared/utils/availability.js";
 
 // ── Mock session history ────────────────────────────────────
 const MOCK_SESSION_HISTORY = [
@@ -144,6 +145,14 @@ export const Profile = ({ navigate }) => {
     shareProgress: true, anonymousAnalytics: true, showOnlineStatus: false,
   });
   const togglePrivacy = (key) => setPrivacySettings((p) => ({ ...p, [key]: !p[key] }));
+
+  // ── Timezone ──────────────────────────────────────────────
+  const detectedTz = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; }
+  }, []);
+  const [timezone, setTimezone] = useState(detectedTz);
+  const [showTzEdit, setShowTzEdit] = useState(false);
+  const tzOptions = useMemo(() => getAllTimezones().map((z) => ({ value: z, label: z })), []);
 
   // ── Download / Delete states ────────────────────────────
   const [downloadStarted, setDownloadStarted] = useState(false);
@@ -300,6 +309,45 @@ export const Profile = ({ navigate }) => {
         />
         <SettingsRow icon="bell" label={t("profile.notifications")} onClick={() => setSubView("notifications")} />
         <SettingsRow icon="clock" label={t("profile.sessionHistory")} onClick={() => setSubView("sessionHistory")} />
+      </Card>
+
+      {/* ── Timezone ───────────────────────────────────── */}
+      <Card style={{ marginBottom: gap }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: "var(--ds-text-mid)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          {t("profile.timezone")}
+        </p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 10 }}>{t("profile.timezoneDesc")}</p>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+          borderRadius: RADIUS.sm, background: "var(--ds-cream)",
+        }}>
+          <Ic n="globe" s={16} c={COLORS.primary} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>{timezone}</p>
+            <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 2 }}>
+              UTC{getTimezoneOffset(timezone)} · {t("profile.timezoneDetected")}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowTzEdit(!showTzEdit)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 600, color: COLORS.primary, fontFamily: "inherit",
+            }}
+          >
+            {showTzEdit ? t("action.cancel") : t("profile.editSection")}
+          </button>
+        </div>
+        {showTzEdit && (
+          <div style={{ marginTop: 10 }}>
+            <Select
+              options={tzOptions}
+              value={timezone}
+              onChange={(v) => { setTimezone(v); setShowTzEdit(false); }}
+              placeholder={t("onboarding.timezoneSelect")}
+            />
+          </div>
+        )}
       </Card>
 
       {/* ── Help & more ───────────────────────────────── */}

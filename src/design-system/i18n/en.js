@@ -638,6 +638,10 @@ export default {
     genderIdentity:          "Gender identity",
     noData:                  "Not yet set",
     editSection:             "Edit",
+    // Timezone
+    timezone:                "Timezone",
+    timezoneDesc:            "Used for scheduling sessions and reminders",
+    timezoneDetected:        "Detected automatically",
   },
   support: {
     title:          "Support",

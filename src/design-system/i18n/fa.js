@@ -652,6 +652,10 @@ export default {
     genderIdentity:          "هویت جنسیتی",
     noData:                  "هنوز تنظیم نشده",
     editSection:             "ویرایش",
+    // Timezone
+    timezone:                "منطقه زمانی",
+    timezoneDesc:            "برای زمان‌بندی جلسات و یادآوری‌ها استفاده می‌شود",
+    timezoneDetected:        "به‌صورت خودکار شناسایی شده",
   },
   // ── Support ──────────────────────────────────────────────
   support: {
