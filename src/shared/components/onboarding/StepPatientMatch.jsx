@@ -23,9 +23,10 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
   // Crisis gate — show resources first if patient flagged crisis
   const hasCrisis = answers?.crisisFlag === "yes";
   const [crisisAcknowledged, setCrisisAcknowledged] = useState(false);
+  const [showCrisis, setShowCrisis] = useState(false);
 
-  if (hasCrisis && !crisisAcknowledged) {
-    return <CrisisResources onContinue={() => setCrisisAcknowledged(true)} />;
+  if ((hasCrisis && !crisisAcknowledged) || showCrisis) {
+    return <CrisisResources onContinue={() => { setCrisisAcknowledged(true); setShowCrisis(false); }} />;
   }
 
   return (
@@ -68,10 +69,10 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
         )}
       </div>
 
-      {/* Crisis resources link (for testing — always visible) */}
+      {/* Crisis resources link — always accessible */}
       <div style={{ display: "flex", justifyContent: "center" }}>
         <button
-          onClick={() => setCrisisAcknowledged(false)}
+          onClick={() => setShowCrisis(true)}
           style={{
             background: "none", border: "none", cursor: "pointer",
             fontSize: 12, color: COLORS.danger, fontWeight: 600,
