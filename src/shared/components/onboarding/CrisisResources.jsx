@@ -20,17 +20,17 @@ export const CrisisResources = ({ onContinue }) => {
         }}>
           <Ic n="heart" s={28} c={COLORS.accent} />
         </div>
-        <h2 className="ds-heading" style={{ fontSize: 24, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 24, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("crisis.title")}
         </h2>
-        <p style={{ fontSize: 14, color: COLORS.textMid, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: "var(--ds-text-mid)", lineHeight: 1.5 }}>
           {t("crisis.subtitle")}
         </p>
       </div>
 
       {/* ── Banner ──────────────────────────────────────────── */}
       <p style={{
-        fontSize: 13, color: COLORS.textMid, lineHeight: 1.5,
+        fontSize: 13, color: "var(--ds-text-mid)", lineHeight: 1.5,
         background: COLORS.accentGhost, borderRadius: RADIUS.md,
         padding: "10px 14px", textAlign: "center",
       }}>
@@ -51,7 +51,7 @@ export const CrisisResources = ({ onContinue }) => {
 
       {/* ── Hotlines ────────────────────────────────────────── */}
       <div>
-        <p style={{ fontSize: 13, fontWeight: 700, color: COLORS.textDark, marginBottom: 10 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)", marginBottom: 10 }}>
           {t("crisis.hotlineTitle")}
         </p>
 
@@ -66,8 +66,8 @@ export const CrisisResources = ({ onContinue }) => {
               <Ic n="phone" s={18} c={COLORS.primary} />
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.textDark }}>{t("crisis.hotline988")}</p>
-              <p style={{ fontSize: 12, color: COLORS.textMid }}>{t("crisis.hotline988Sub")}</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-text)" }}>{t("crisis.hotline988")}</p>
+              <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>{t("crisis.hotline988Sub")}</p>
             </div>
           </div>
           <a href="tel:988" style={{ textDecoration: "none" }}>
@@ -87,15 +87,15 @@ export const CrisisResources = ({ onContinue }) => {
             <Ic n="message" s={18} c={COLORS.primary} />
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.textDark }}>{t("crisis.hotlineText")}</p>
-            <p style={{ fontSize: 12, color: COLORS.textMid }}>{t("crisis.hotlineTextSub")}</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-text)" }}>{t("crisis.hotlineText")}</p>
+            <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>{t("crisis.hotlineTextSub")}</p>
           </div>
         </Card>
       </div>
 
       {/* ── Reassurance ─────────────────────────────────────── */}
       <p style={{
-        fontSize: 13, color: COLORS.textMid, lineHeight: 1.6,
+        fontSize: 13, color: "var(--ds-text-mid)", lineHeight: 1.6,
         textAlign: "center", fontStyle: "italic",
         padding: "0 8px",
       }}>

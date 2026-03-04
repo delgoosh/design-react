@@ -76,11 +76,11 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Header */}
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("calendar.setAvailability")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("calendar.availabilitySub")}</p>
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginTop: 4 }}>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("calendar.availabilitySub")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 4 }}>
           {t("calendar.blockDurationInfo")}
         </p>
       </div>
@@ -89,7 +89,7 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         padding: "6px 12px", borderRadius: RADIUS.sm,
-        background: `${COLORS.primary}10`, fontSize: 11, color: COLORS.textMid,
+        background: `${COLORS.primary}10`, fontSize: 11, color: "var(--ds-text-mid)",
       }}>
         <Ic n="globe" s={14} c={COLORS.primary} />
         {t("calendar.timezone")}: {detectedTz}
@@ -106,7 +106,7 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
               border: `1px solid ${COLORS.cardBorder || "rgba(255,255,255,.08)"}`,
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: dayRanges.length > 0 ? 8 : 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.textDark }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
                   {t(`calendar.daysFull.${dayKey}`)}
                 </span>
                 <button
@@ -122,7 +122,7 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
               </div>
 
               {dayRanges.length === 0 && (
-                <p style={{ fontSize: 11, color: COLORS.textLight }}>{t("calendar.noAvailability")}</p>
+                <p style={{ fontSize: 11, color: "var(--ds-text-light)" }}>{t("calendar.noAvailability")}</p>
               )}
 
               {dayRanges.map((range, idx) => {
@@ -131,7 +131,7 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
                 return (
                   <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                     <TimeSelect value={range.start} onChange={(v) => handleUpdate(dayKey, idx, "start", v)} label={t("calendar.rangeStart")} />
-                    <span style={{ fontSize: 11, color: COLORS.textLight }}>–</span>
+                    <span style={{ fontSize: 11, color: "var(--ds-text-light)" }}>–</span>
                     <TimeSelect value={range.end} onChange={(v) => handleUpdate(dayKey, idx, "end", v)} label={t("calendar.rangeEnd")} />
                     {validation.valid && (
                       <Tag color="primary" style={{ fontSize: 9 }}>{blockCount} {t("calendar.blocksCount")}</Tag>
@@ -176,14 +176,14 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
 function TimeSelect({ value, onChange, label }) {
   return (
     <label style={{ display: "flex", alignItems: "center", gap: 3 }}>
-      <span style={{ fontSize: 10, color: COLORS.textLight }}>{label}</span>
+      <span style={{ fontSize: 10, color: "var(--ds-text-light)" }}>{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
           padding: "3px 5px", fontSize: 11, fontFamily: "inherit",
           borderRadius: 5, border: `1px solid ${COLORS.cardBorder || "rgba(255,255,255,.15)"}`,
-          background: COLORS.cardBg || "rgba(255,255,255,.06)", color: COLORS.textDark,
+          background: COLORS.cardBg || "rgba(255,255,255,.06)", color: "var(--ds-text)",
           direction: "ltr", cursor: "pointer",
         }}
       >

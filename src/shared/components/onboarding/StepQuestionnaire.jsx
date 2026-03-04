@@ -290,15 +290,15 @@ export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.questionnaireTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.questionnaireSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.questionnaireSub")}</p>
       </div>
 
       {questions.map((q) => (
         <Card key={q.id} variant="sm" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.textDark }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-text)" }}>
             {q.label}
             {q.required && <span style={{ color: COLORS.danger }}> *</span>}
           </p>

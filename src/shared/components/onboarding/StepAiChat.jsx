@@ -78,10 +78,10 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.aiChatTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.aiChatSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.aiChatSub")}</p>
       </div>
 
       {/* Chat area */}
@@ -90,7 +90,7 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
         style={{
           flex: 1, minHeight: 300, maxHeight: 420,
           overflowY: "auto", padding: 12,
-          background: "white", borderRadius: RADIUS.lg,
+          background: "var(--ds-card-bg)", borderRadius: RADIUS.lg,
           border: `1px solid ${COLORS.cardBorder}`,
           display: "flex", flexDirection: "column", gap: 12,
         }}
@@ -117,7 +117,7 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
             style={{
               flex: 1, padding: "10px 14px", fontSize: 13,
               borderRadius: RADIUS.md, border: `1.5px solid ${COLORS.sand}`,
-              background: "white", color: COLORS.textDark,
+              background: "var(--ds-bg)", color: "var(--ds-text)",
               fontFamily: "inherit", direction: dir, outline: "none",
               opacity: typing ? 0.6 : 1,
             }}
@@ -168,7 +168,7 @@ function ChatBubble({ role, text, isRtl }) {
         maxWidth: "75%", padding: "10px 14px",
         borderRadius: isAi ? "14px 14px 14px 4px" : "14px 14px 4px 14px",
         background: isAi ? COLORS.cream : COLORS.primaryGhost,
-        color: COLORS.textDark, fontSize: 13, lineHeight: 1.55,
+        color: "var(--ds-text)", fontSize: 13, lineHeight: 1.55,
       }}>
         {text}
       </div>
@@ -199,7 +199,7 @@ function TypingIndicator({ isRtl, t }) {
       {!isRtl && <BotAvatar />}
       <div style={{
         padding: "10px 14px", borderRadius: "14px 14px 14px 4px",
-        background: COLORS.cream, color: COLORS.textLight, fontSize: 12,
+        background: COLORS.cream, color: "var(--ds-text-light)", fontSize: 12,
         fontStyle: "italic",
       }}>
         {t("onboarding.aiTyping")}

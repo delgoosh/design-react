@@ -26,16 +26,16 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.matchTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.matchSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.matchSub")}</p>
       </div>
 
       {/* Timezone tag */}
       <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
         <Tag color="neutral" style={{ gap: 5 }}>
-          <Ic n="globe" s={13} c={COLORS.textMid} />
+          <Ic n="globe" s={13} c="var(--ds-text-mid)" />
           {t("onboarding.timezone")}: {tz}
         </Tag>
       </div>
@@ -65,8 +65,8 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
               size={48}
             />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: COLORS.textDark }}>{localised(th.name, lang)}</p>
-              <p style={{ fontSize: 12, color: COLORS.textMid }}>{localised(th.credentials, lang)}</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ds-text)" }}>{localised(th.name, lang)}</p>
+              <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>{localised(th.credentials, lang)}</p>
             </div>
             <Tag color="primary" style={{ fontWeight: 700 }}>{th.matchPercent}% {t("onboarding.matchPercent")}</Tag>
           </div>
@@ -84,8 +84,8 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
           {/* Rating + next slot */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <StarRating value={th.rating} />
-            <span style={{ fontSize: 12, color: COLORS.textMid }}>
-              <Ic n="clock" s={12} c={COLORS.textLight} />{" "}
+            <span style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
+              <Ic n="clock" s={12} c="var(--ds-text-light)" />{" "}
               {t("onboarding.nextAvailable")}: {localised(th.nextSlot, lang)}
             </span>
           </div>

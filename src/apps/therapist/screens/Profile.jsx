@@ -122,7 +122,7 @@ const TagList = ({ items, labelMap, color = "primary" }) => (
 
 const SectionHeader = ({ title, onEdit, t }) => (
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-    <p style={{ fontSize: 15, fontWeight: 700, color: COLORS.textDark }}>{title}</p>
+    <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)" }}>{title}</p>
     <button
       onClick={onEdit}
       style={{
@@ -138,8 +138,8 @@ const SectionHeader = ({ title, onEdit, t }) => (
 
 const FieldRow = ({ label, value }) => (
   <div style={{ marginBottom: 8 }}>
-    <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 2 }}>{label}</p>
-    <p style={{ fontSize: 13, color: COLORS.textDark }}>{value || "—"}</p>
+    <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 2 }}>{label}</p>
+    <p style={{ fontSize: 13, color: "var(--ds-text)" }}>{value || "—"}</p>
   </div>
 );
 
@@ -241,10 +241,10 @@ export const Profile = () => {
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
         <Avatar initials={initials} src={profile.avatar} size={72} />
         <div style={{ flex: 1 }}>
-          <h2 className="ds-heading" style={{ fontSize: 20, color: COLORS.textDark, marginBottom: 2 }}>
+          <h2 className="ds-heading" style={{ fontSize: 20, color: "var(--ds-text)", marginBottom: 2 }}>
             {loc(profile.firstName, lang)} {loc(profile.lastName, lang)}
           </h2>
-          <p style={{ fontSize: 12, color: COLORS.textMid, marginBottom: 6 }}>{profile.email}</p>
+          <p style={{ fontSize: 12, color: "var(--ds-text-mid)", marginBottom: 6 }}>{profile.email}</p>
           <Tag color="primary" style={{ fontSize: 10 }}>{t("profile.verified")}</Tag>
         </div>
       </div>
@@ -262,25 +262,25 @@ export const Profile = () => {
       {/* ── Professional ─────────────────────────────────────── */}
       <Card>
         <SectionHeader title={t("profile.professionalTitle")} onEdit={() => openEdit("professional")} t={t} />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4 }}>{t("profile.specialties")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4 }}>{t("profile.specialties")}</p>
         <TagList items={q.specializations} labelMap={specs} color="primary" />
         <FieldRow label={t("profile.yearsExp")} value={exps[q.experience] || q.experience} />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4, marginTop: 8 }}>{t("onboarding.tq5Label")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4, marginTop: 8 }}>{t("onboarding.tq5Label")}</p>
         <TagList items={q.approaches} labelMap={apprs} color="accent" />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4, marginTop: 8 }}>{t("profile.languages")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4, marginTop: 8 }}>{t("profile.languages")}</p>
         <TagList items={q.languages} labelMap={langs} color="neutral" />
       </Card>
 
       {/* ── Matching Preferences ──────────────────────────────── */}
       <Card>
         <SectionHeader title={t("profile.matchingTitle")} onEdit={() => openEdit("matching")} t={t} />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4 }}>{t("profile.clientTypes")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4 }}>{t("profile.clientTypes")}</p>
         <TagList items={q.clientTypes} labelMap={clients} color="primary" />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4, marginTop: 8 }}>{t("profile.styleTags")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4, marginTop: 8 }}>{t("profile.styleTags")}</p>
         <TagList items={q.styleTags} labelMap={styles} color="accent" />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4, marginTop: 8 }}>{t("profile.culturalCompetencies")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4, marginTop: 8 }}>{t("profile.culturalCompetencies")}</p>
         <TagList items={q.culturalCompetencies} labelMap={cultures} color="neutral" />
-        <p style={{ fontSize: 11, color: COLORS.textLight, marginBottom: 4, marginTop: 8 }}>{t("profile.ageGroups")}</p>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 4, marginTop: 8 }}>{t("profile.ageGroups")}</p>
         <TagList items={q.ageGroups} labelMap={ages} color="neutral" />
         <FieldRow label={t("profile.genderIdentity")} value={genders[q.genderIdentity] || q.genderIdentity} />
       </Card>
@@ -296,11 +296,11 @@ export const Profile = () => {
       {/* Personal Info Edit */}
       {editSection === "personal" && (
         <BottomSheet onClose={() => setEditSection(null)}>
-          <h3 className="ds-heading" style={{ fontSize: 17, color: COLORS.textDark, marginBottom: 16 }}>
+          <h3 className="ds-heading" style={{ fontSize: 17, color: "var(--ds-text)", marginBottom: 16 }}>
             {t("profile.personalInfo")}
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ fontSize: 12, color: COLORS.textMid }}>
+            <label style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
               {t("profile.firstName")}
               <input
                 type="text" value={loc(draft.firstName, lang)}
@@ -308,7 +308,7 @@ export const Profile = () => {
                 style={inputStyle}
               />
             </label>
-            <label style={{ fontSize: 12, color: COLORS.textMid }}>
+            <label style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
               {t("profile.lastName")}
               <input
                 type="text" value={loc(draft.lastName, lang)}
@@ -316,7 +316,7 @@ export const Profile = () => {
                 style={inputStyle}
               />
             </label>
-            <label style={{ fontSize: 12, color: COLORS.textMid }}>
+            <label style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
               {t("profile.email")}
               <input
                 type="email" value={draft.email || ""}
@@ -324,7 +324,7 @@ export const Profile = () => {
                 style={inputStyle}
               />
             </label>
-            <label style={{ fontSize: 12, color: COLORS.textMid }}>
+            <label style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>
               {t("profile.phone")}
               <input
                 type="tel" value={draft.phone || ""}
@@ -340,16 +340,16 @@ export const Profile = () => {
       {/* Professional Edit */}
       {editSection === "professional" && (
         <BottomSheet onClose={() => setEditSection(null)}>
-          <h3 className="ds-heading" style={{ fontSize: 17, color: COLORS.textDark, marginBottom: 16 }}>
+          <h3 className="ds-heading" style={{ fontSize: 17, color: "var(--ds-text)", marginBottom: 16 }}>
             {t("profile.professionalTitle")}
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.specialties")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.specialties")}</p>
               <CheckboxEditor options={specs} selected={draft.specializations || []} onToggle={(v) => toggleDraft("specializations", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.yearsExp")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.yearsExp")}</p>
               <Select
                 options={Object.entries(exps).map(([value, label]) => ({ value, label }))}
                 value={draft.experience}
@@ -357,11 +357,11 @@ export const Profile = () => {
               />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("onboarding.tq5Label")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("onboarding.tq5Label")}</p>
               <CheckboxEditor options={apprs} selected={draft.approaches || []} onToggle={(v) => toggleDraft("approaches", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.languages")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.languages")}</p>
               <CheckboxEditor options={langs} selected={draft.languages || []} onToggle={(v) => toggleDraft("languages", v)} />
             </div>
           </div>
@@ -372,28 +372,28 @@ export const Profile = () => {
       {/* Matching Edit */}
       {editSection === "matching" && (
         <BottomSheet onClose={() => setEditSection(null)}>
-          <h3 className="ds-heading" style={{ fontSize: 17, color: COLORS.textDark, marginBottom: 16 }}>
+          <h3 className="ds-heading" style={{ fontSize: 17, color: "var(--ds-text)", marginBottom: 16 }}>
             {t("profile.matchingTitle")}
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.clientTypes")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.clientTypes")}</p>
               <CheckboxEditor options={clients} selected={draft.clientTypes || []} onToggle={(v) => toggleDraft("clientTypes", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.styleTags")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.styleTags")}</p>
               <CheckboxEditor options={styles} selected={draft.styleTags || []} onToggle={(v) => toggleDraft("styleTags", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.culturalCompetencies")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.culturalCompetencies")}</p>
               <CheckboxEditor options={cultures} selected={draft.culturalCompetencies || []} onToggle={(v) => toggleDraft("culturalCompetencies", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.ageGroups")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.ageGroups")}</p>
               <CheckboxEditor options={ages} selected={draft.ageGroups || []} onToggle={(v) => toggleDraft("ageGroups", v)} />
             </div>
             <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("profile.genderIdentity")}</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("profile.genderIdentity")}</p>
               <RadioGroup
                 options={Object.entries(genders).map(([value, label]) => ({ value, label }))}
                 value={draft.genderIdentity}
@@ -408,11 +408,11 @@ export const Profile = () => {
       {/* Session Settings Edit */}
       {editSection === "session" && (
         <BottomSheet onClose={() => setEditSection(null)}>
-          <h3 className="ds-heading" style={{ fontSize: 17, color: COLORS.textDark, marginBottom: 16 }}>
+          <h3 className="ds-heading" style={{ fontSize: 17, color: "var(--ds-text)", marginBottom: 16 }}>
             {t("profile.sessionSettingsTitle")}
           </h3>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.textDark, marginBottom: 6 }}>{t("onboarding.tq3Label")}</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("onboarding.tq3Label")}</p>
             <RadioGroup
               options={Object.entries(fmts).map(([value, label]) => ({ value, label }))}
               value={draft.sessionFormat}
@@ -432,7 +432,7 @@ const inputStyle = {
   padding: "8px 10px", fontSize: 13, fontFamily: "inherit",
   border: `1px solid ${COLORS.border}`,
   borderRadius: RADIUS.sm, outline: "none",
-  background: "var(--ds-bg)", color: COLORS.textDark,
+  background: "var(--ds-bg)", color: "var(--ds-text)",
 };
 
 const SheetButtons = ({ onCancel, onSave, t }) => (
