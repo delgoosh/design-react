@@ -83,6 +83,14 @@ const MOCK = {
       hasTranscript: true,
       hasAiSummary:  true,
       hasNote:       false,
+      transcriptText: {
+        en: "Therapist: How have you been feeling since our last session?\n\nSara: I've been doing a bit better, actually. The breathing exercises have helped when I feel the anxiety coming on, especially in the mornings before work.\n\nTherapist: That's great progress. Can you tell me more about what triggers the anxiety in the mornings?\n\nSara: It's usually when I start thinking about my workload. I have this pattern of catastrophizing — imagining everything going wrong before the day even starts.\n\nTherapist: Let's work on some cognitive restructuring techniques today. When you notice that pattern, I'd like you to try identifying the specific thought and asking yourself: what evidence do I have that this will actually happen?",
+        fa: "درمانگر: از جلسه قبل تا حالا چه حالی داشتید؟\n\nسارا: راستش کمی بهتر بوده. تمرین‌های تنفس وقتی احساس می‌کنم اضطراب داره میاد کمک کرده، مخصوصاً صبح‌ها قبل از کار.\n\nدرمانگر: این پیشرفت خوبی‌ه. می‌تونید بیشتر بگید چه چیزی صبح‌ها اضطراب رو تحریک می‌کنه؟\n\nسارا: معمولاً وقتی شروع می‌کنم به فکر کردن درباره حجم کارم. یه الگوی فاجعه‌سازی دارم — تصور می‌کنم همه چیز قبل از شروع روز خراب می‌شه.\n\nدرمانگر: بیایید امروز روی تکنیک‌های بازسازی شناختی کار کنیم. وقتی این الگو رو متوجه می‌شید، می‌خوام سعی کنید فکر خاص رو شناسایی کنید و از خودتان بپرسید: چه مدرکی دارم که این واقعاً اتفاق بیفتد؟",
+      },
+      aiSummaryText: {
+        en: "Session focused on anxiety management with cognitive restructuring techniques.\n\nKey observations:\n• Patient reports improvement with breathing exercises, particularly effective in morning anxiety episodes\n• Primary trigger identified: work-related catastrophizing thoughts before the day begins\n• Pattern of anticipatory anxiety with cognitive distortion (catastrophizing)\n\nInterventions used:\n• Cognitive restructuring — evidence-based thought challenging\n• Continued breathing exercises as coping mechanism\n\nRecommendations:\n• Continue daily breathing practice\n• Introduce thought record journal for tracking catastrophizing patterns\n• Follow up on sleep quality next session",
+        fa: "جلسه بر مدیریت اضطراب با تکنیک‌های بازسازی شناختی متمرکز بود.\n\nمشاهدات کلیدی:\n• بیمار بهبود با تمرین‌های تنفس گزارش می‌دهد، به‌ویژه در دوره‌های اضطراب صبحگاهی مؤثر بوده\n• محرک اصلی شناسایی شده: افکار فاجعه‌ساز مرتبط با کار قبل از شروع روز\n• الگوی اضطراب پیش‌بینانه با تحریف شناختی (فاجعه‌سازی)\n\nمداخلات استفاده‌شده:\n• بازسازی شناختی — چالش فکر مبتنی بر شواهد\n• ادامه تمرین‌های تنفس به‌عنوان مکانیسم مقابله\n\nتوصیه‌ها:\n• ادامه تمرین تنفس روزانه\n• معرفی دفترچه ثبت افکار برای ردیابی الگوهای فاجعه‌سازی\n• پیگیری کیفیت خواب در جلسه بعدی",
+      },
     },
     {
       id: 2,
@@ -93,6 +101,10 @@ const MOCK = {
       hasTranscript: true,
       hasAiSummary:  false,
       hasNote:       false,
+      transcriptText: {
+        en: "Therapist: Ali, how has your mood been this past week?\n\nAli: It's been up and down. I had a couple of good days where I actually felt motivated to go for a walk, but then the weekend hit and I just stayed in bed most of the time.\n\nTherapist: Those good days are important. What was different about them?\n\nAli: I think it was because I had plans with a friend. Having something to look forward to helped.\n\nTherapist: That's an insightful observation. Social connection seems to be a protective factor for you. Let's explore how we can build more of that into your routine.",
+        fa: "درمانگر: علی، این هفته خلقتون چطور بوده؟\n\nعلی: بالا و پایین بوده. چند روز خوب داشتم که واقعاً انگیزه داشتم برم پیاده‌روی، ولی آخر هفته رسید و بیشتر وقتم رو تو تخت موندم.\n\nدرمانگر: اون روزهای خوب مهم‌ان. چه فرقی داشتن؟\n\nعلی: فکر کنم چون با یه دوست قرار داشتم. داشتن چیزی برای منتظرش بودن کمک کرد.\n\nدرمانگر: این مشاهده بصیرت‌آمیزیه. ارتباط اجتماعی انگار یه عامل محافظتی برای شماست. بیایید ببینیم چطور می‌تونیم بیشتر از این رو تو برنامه روزانه‌تون بگنجونیم.",
+      },
     },
     {
       id: 3,
@@ -127,6 +139,9 @@ export const Dashboard = ({ setTab }) => {
   const [showNotifs, setShowNotifs] = useState(false);
   const notesRef = useRef(null);
   const scrollToNotes = () => notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // ── Read-only panel state (transcript / AI summary) ──────
+  const [viewPanel, setViewPanel] = useState(null); // null | { type: "transcript"|"summary", session }
 
   // ── Notes state ───────────────────────────────────────────
   const [notes, setNotes] = useState(loadNotes);
@@ -371,7 +386,7 @@ export const Dashboard = ({ setTab }) => {
             {/* Transcript / AI summary availability */}
             <div style={{ display: "flex", gap: 6, marginTop: 8, ...(dir === "rtl" ? { marginRight: 50 } : { marginLeft: 50 }) }}>
               {note.hasTranscript && (
-                <button style={{
+                <button onClick={() => setViewPanel({ type: "transcript", session: note })} style={{
                   display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
                   borderRadius: RADIUS.sm, border: `1px solid ${COLORS.primaryGhost}`,
                   background: COLORS.primaryGhost, cursor: "pointer", fontFamily: "inherit",
@@ -381,7 +396,7 @@ export const Dashboard = ({ setTab }) => {
                 </button>
               )}
               {note.hasAiSummary && (
-                <button style={{
+                <button onClick={() => setViewPanel({ type: "summary", session: note })} style={{
                   display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
                   borderRadius: RADIUS.sm, border: `1px solid ${COLORS.successGhost}`,
                   background: COLORS.successGhost, cursor: "pointer", fontFamily: "inherit",
@@ -563,6 +578,60 @@ export const Dashboard = ({ setTab }) => {
                 {t("action.close")}
               </Button>
             )}
+          </BottomSheet>
+        );
+      })()}
+
+      {/* ── Read-only panel BottomSheet (transcript / AI summary) ── */}
+      {viewPanel && (() => {
+        const s = viewPanel.session;
+        const isTranscript = viewPanel.type === "transcript";
+        const title = isTranscript ? t("session.transcript") : t("session.aiSummary");
+        const icon  = isTranscript ? "file" : "bot";
+        const color = isTranscript ? COLORS.primary : COLORS.success;
+        const ghost = isTranscript ? COLORS.primaryGhost : COLORS.successGhost;
+        const text  = isTranscript ? loc(s.transcriptText, lang) : loc(s.aiSummaryText, lang);
+        return (
+          <BottomSheet onClose={() => setViewPanel(null)}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: RADIUS.sm, background: ghost,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Ic n={icon} s={16} c={color} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)" }}>{title}</p>
+                  <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 2 }}>
+                    {loc(s.topic, lang)} · {loc(s.date, lang)}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setViewPanel(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                <Ic n="x" s={18} c="var(--ds-text-mid)" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{
+              padding: 16, borderRadius: RADIUS.md, background: "var(--ds-cream)",
+              borderInlineStart: `3px solid ${color}`, marginBottom: 16,
+              maxHeight: "55vh", overflowY: "auto",
+            }}>
+              <p style={{
+                fontFamily: FONTS.note.family, fontSize: 14, lineHeight: 1.9,
+                color: "var(--ds-text)", whiteSpace: "pre-wrap",
+              }}>
+                {text}
+              </p>
+            </div>
+
+            {/* Close */}
+            <Button variant="ghost2" size="sm" onClick={() => setViewPanel(null)} style={{ width: "100%" }}>
+              {t("action.close")}
+            </Button>
           </BottomSheet>
         );
       })()}
