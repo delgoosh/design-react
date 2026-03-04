@@ -137,6 +137,9 @@ export const MOCK_NEXT_SESSION = (therapist) => {
     dateISO: d.toISOString(),
     startTime: "10:00",
     dateStr: d.toISOString().slice(0, 10),
+    // Timezone offsets for counterpart time hint
+    patientUtcOffset: "-05:00",
+    therapistUtcOffset: therapist.utcOffset || "+03:30",
   };
 };
 
