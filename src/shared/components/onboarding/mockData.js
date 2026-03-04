@@ -49,6 +49,19 @@ export const MOCK_THERAPISTS = [
     avatar:       null,
     timezone:     "Asia/Tehran",
     utcOffset:    "+03:30",
+    clientTypes:  ["individuals", "couples"],
+    styleTags: [
+      { en: "Warm & supportive",   fa: "گرم و حمایتی" },
+      { en: "Culturally sensitive", fa: "حساس به فرهنگ" },
+      { en: "Trauma-informed",     fa: "آگاه از تروما" },
+    ],
+    culturalCompetencies: [
+      { en: "Middle Eastern", fa: "خاورمیانه‌ای" },
+      { en: "South Asian",   fa: "آسیای جنوبی" },
+    ],
+    ageGroups:       ["18-25", "26-40", "41-60"],
+    gender:          { en: "Female", fa: "زن" },
+    lgbtqAffirming:  true,
   },
   {
     id: "t2",
@@ -65,6 +78,18 @@ export const MOCK_THERAPISTS = [
     avatar:       null,
     timezone:     "America/New_York",
     utcOffset:    "-05:00",
+    clientTypes:  ["individuals", "teens"],
+    styleTags: [
+      { en: "Direct & structured", fa: "مستقیم و ساختاریافته" },
+      { en: "Trauma-informed",     fa: "آگاه از تروما" },
+    ],
+    culturalCompetencies: [
+      { en: "Middle Eastern",  fa: "خاورمیانه‌ای" },
+      { en: "North American",  fa: "آمریکای شمالی" },
+    ],
+    ageGroups:       ["18-25", "26-40"],
+    gender:          { en: "Male", fa: "مرد" },
+    lgbtqAffirming:  false,
   },
   {
     id: "t3",
@@ -81,6 +106,19 @@ export const MOCK_THERAPISTS = [
     avatar:       null,
     timezone:     "Asia/Kolkata",
     utcOffset:    "+05:30",
+    clientTypes:  ["individuals", "couples", "families"],
+    styleTags: [
+      { en: "Warm & supportive",   fa: "گرم و حمایتی" },
+      { en: "LGBTQ+ affirming",    fa: "حمایت‌کننده LGBTQ+" },
+      { en: "Culturally sensitive", fa: "حساس به فرهنگ" },
+    ],
+    culturalCompetencies: [
+      { en: "South Asian", fa: "آسیای جنوبی" },
+      { en: "East Asian",  fa: "آسیای شرقی" },
+    ],
+    ageGroups:       ["26-40", "41-60", "60+"],
+    gender:          { en: "Female", fa: "زن" },
+    lgbtqAffirming:  true,
   },
 ];
 

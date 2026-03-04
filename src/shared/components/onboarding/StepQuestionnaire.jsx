@@ -70,6 +70,61 @@ const patientQuestions = (t) => [
       { value: "weekend",   label: t("onboarding.pq5Weekend") },
     ],
   },
+  // ── Matching questions ──────────────────────────────────────
+  {
+    id: "serviceType",
+    label: t("onboarding.pq6Label"),
+    type: "radio",
+    required: true,
+    options: [
+      { value: "individual", label: t("onboarding.pq6Individual") },
+      { value: "couples",    label: t("onboarding.pq6Couples") },
+      { value: "family",     label: t("onboarding.pq6Family") },
+      { value: "teen",       label: t("onboarding.pq6Teen") },
+    ],
+  },
+  {
+    id: "crisisFlag",
+    label: t("onboarding.pq7Label"),
+    type: "radio",
+    required: true,
+    options: [
+      { value: "yes", label: t("onboarding.pq7Yes") },
+      { value: "no",  label: t("onboarding.pq7No") },
+    ],
+  },
+  {
+    id: "therapistAge",
+    label: t("onboarding.pq8Label"),
+    type: "radio",
+    options: [
+      { value: "noPref", label: t("onboarding.pq8NoPref") },
+      { value: "25-35",  label: t("onboarding.pq8_25_35") },
+      { value: "35-45",  label: t("onboarding.pq8_35_45") },
+      { value: "45+",    label: t("onboarding.pq8_45Plus") },
+    ],
+  },
+  {
+    id: "lgbtqAffirming",
+    label: t("onboarding.pq9Label"),
+    type: "radio",
+    options: [
+      { value: "important",  label: t("onboarding.pq9Important") },
+      { value: "niceToHave", label: t("onboarding.pq9NiceToHave") },
+      { value: "noPref",     label: t("onboarding.pq9NoPref") },
+    ],
+  },
+  {
+    id: "culturalMatch",
+    label: t("onboarding.pq10Label"),
+    type: "checkbox",
+    options: [
+      { value: "sameCulture",  label: t("onboarding.pq10SameCulture") },
+      { value: "sameReligion", label: t("onboarding.pq10SameReligion") },
+      { value: "sameLanguage", label: t("onboarding.pq10SameLanguage") },
+      { value: "notImportant", label: t("onboarding.pq10NotImportant") },
+    ],
+  },
 ];
 
 const therapistQuestions = (t) => [
@@ -133,6 +188,69 @@ const therapistQuestions = (t) => [
       { value: "somatic",     label: t("onboarding.tq5Somatic") },
     ],
   },
+  // ── Matching questions ──────────────────────────────────────
+  {
+    id: "clientTypes",
+    label: t("onboarding.tq6Label"),
+    type: "checkbox",
+    options: [
+      { value: "individuals", label: t("onboarding.tq6Individuals") },
+      { value: "couples",     label: t("onboarding.tq6Couples") },
+      { value: "families",    label: t("onboarding.tq6Families") },
+      { value: "teens",       label: t("onboarding.tq6Teens") },
+      { value: "children",    label: t("onboarding.tq6Children") },
+    ],
+  },
+  {
+    id: "styleTags",
+    label: t("onboarding.tq7Label"),
+    type: "checkbox",
+    options: [
+      { value: "warm",     label: t("onboarding.tq7Warm") },
+      { value: "direct",   label: t("onboarding.tq7Direct") },
+      { value: "cultural", label: t("onboarding.tq7Cultural") },
+      { value: "lgbtq",    label: t("onboarding.tq7LGBTQ") },
+      { value: "faith",    label: t("onboarding.tq7Faith") },
+      { value: "trauma",   label: t("onboarding.tq7Trauma") },
+    ],
+  },
+  {
+    id: "culturalCompetencies",
+    label: t("onboarding.tq8Label"),
+    type: "checkbox",
+    options: [
+      { value: "middleEast",    label: t("onboarding.tq8MiddleEast") },
+      { value: "southAsian",    label: t("onboarding.tq8SouthAsian") },
+      { value: "eastAsian",     label: t("onboarding.tq8EastAsian") },
+      { value: "african",       label: t("onboarding.tq8African") },
+      { value: "latinAmerican", label: t("onboarding.tq8LatinAmerican") },
+      { value: "european",      label: t("onboarding.tq8European") },
+      { value: "northAmerican", label: t("onboarding.tq8NorthAmerican") },
+    ],
+  },
+  {
+    id: "ageGroups",
+    label: t("onboarding.tq9Label"),
+    type: "checkbox",
+    options: [
+      { value: "13-17", label: t("onboarding.tq9_13_17") },
+      { value: "18-25", label: t("onboarding.tq9_18_25") },
+      { value: "26-40", label: t("onboarding.tq9_26_40") },
+      { value: "41-60", label: t("onboarding.tq9_41_60") },
+      { value: "60+",   label: t("onboarding.tq9_60Plus") },
+    ],
+  },
+  {
+    id: "genderIdentity",
+    label: t("onboarding.tq10Label"),
+    type: "radio",
+    options: [
+      { value: "male",           label: t("onboarding.tq10Male") },
+      { value: "female",         label: t("onboarding.tq10Female") },
+      { value: "nonBinary",      label: t("onboarding.tq10NonBinary") },
+      { value: "preferNotToSay", label: t("onboarding.tq10PreferNotToSay") },
+    ],
+  },
 ];
 
 export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack }) => {
@@ -172,15 +290,15 @@ export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack })
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ textAlign: "center" }}>
-        <h2 className="ds-heading" style={{ fontSize: 22, color: COLORS.textDark, marginBottom: 6 }}>
+        <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
           {t("onboarding.questionnaireTitle")}
         </h2>
-        <p style={{ fontSize: 13, color: COLORS.textMid }}>{t("onboarding.questionnaireSub")}</p>
+        <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.questionnaireSub")}</p>
       </div>
 
       {questions.map((q) => (
         <Card key={q.id} variant="sm" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: COLORS.textDark }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-text)" }}>
             {q.label}
             {q.required && <span style={{ color: COLORS.danger }}> *</span>}
           </p>

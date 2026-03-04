@@ -190,7 +190,7 @@ export const Dashboard = ({ setTab }) => {
               <p className="ds-heading" style={{ fontSize: isD ? 22 : 20, color: "var(--ds-text)", lineHeight: 1 }}>{s.value}</p>
             </div>
             <p style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>{s.label}</p>
-            <p style={{ fontSize: 10, color: s.color, fontWeight: 600 }}>{s.cta} →</p>
+            <p style={{ fontSize: 10, color: s.color, fontWeight: 600 }}>{s.cta} {dir === "rtl" ? "←" : "→"}</p>
           </div>
         ))}
       </div>
@@ -345,7 +345,7 @@ export const Dashboard = ({ setTab }) => {
             </div>
           ))}
           <Button variant="ghost" size="xs" style={{ marginTop: 8, width: "100%" }} onClick={() => setTab?.("patients")}>
-            {t("nav.patients")} →
+            {t("nav.patients")} {dir === "rtl" ? "←" : "→"}
           </Button>
         </Card>
       </div>
