@@ -18,6 +18,7 @@ import {
   minutesToTime,
   BLOCK_DURATION_MIN,
   BOOKING_HORIZON_WEEKS,
+  convertTimeBetweenOffsets,
 } from "@shared/utils/availability.js";
 import { StepQuestionnaire } from "@shared/components/onboarding/StepQuestionnaire.jsx";
 import { StepAiChat } from "@shared/components/onboarding/StepAiChat.jsx";
@@ -1120,6 +1121,22 @@ function ChosenTherapistCard({ therapist, session, hasActiveSessions, lang, dir,
                   </div>
                 ))}
               </div>
+              {/* Counterpart time hint */}
+              {session.patientUtcOffset && session.therapistUtcOffset && (() => {
+                const therapistTime = convertTimeBetweenOffsets(
+                  session.time?.en || session.time,
+                  session.patientUtcOffset,
+                  session.therapistUtcOffset
+                );
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 6 }}>
+                    <Ic n="globe" s={10} c="rgba(255,255,255,0.4)" />
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>
+                      {therapistTime} {t("dashboard.theirTime")} {loc(session.therapistName, lang)}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <p style={{

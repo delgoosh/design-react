@@ -278,7 +278,7 @@ export const StatCard = ({ icon, label, value, sub, accentColor, badge, style, o
 };
 
 // ── SessionCard (gradient) ────────────────────────────────────
-export const SessionCard = ({ patientName, initials, topic, time, date, hoursUntil, onJoin, onCancel, style }) => {
+export const SessionCard = ({ patientName, initials, topic, time, date, hoursUntil, counterpartHint, onJoin, onCancel, style }) => {
   const { t, dir } = useLang();
   const isPenalty = hoursUntil !== undefined && hoursUntil < 24;
   return (
@@ -298,6 +298,12 @@ export const SessionCard = ({ patientName, initials, topic, time, date, hoursUnt
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{tx}</span>
             </div>
           ))}
+          {counterpartHint && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Ic n="globe" s={11} c="rgba(255,255,255,0.45)" />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>{counterpartHint}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: 7 }}>
           {onJoin && <Button variant="accent" size="sm" style={{ flex: 1 }} onClick={onJoin}>{t("dashboard.joinSession")}</Button>}

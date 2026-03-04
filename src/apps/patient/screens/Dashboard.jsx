@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, ProgressBar } from "@ds";
 import { COLORS, RADIUS, SHADOW } from "@ds";
+import { convertTimeBetweenOffsets } from "@shared/utils/availability.js";
 
 // ── Mock data ─────────────────────────────────────────────────
 // TODO(backend-integration): replace with real API data
@@ -31,6 +32,8 @@ const MOCK = {
     time: "10:00 AM",
     timeFa: "۱۰:۰۰ صبح",
     hoursUntil: 26,
+    patientUtcOffset:   "-05:00",   // America/New_York
+    therapistUtcOffset: "+03:30",   // Asia/Tehran
   },
   upcomingSessions: [
     { id: 1, therapist: "Dr. Mina Karimi", initials: "MK", date: "Thu, Feb 27", dateFa: "پنجشنبه ۸ اسفند", time: "10:00 AM", timeFa: "۱۰:۰۰ صبح" },
@@ -212,6 +215,22 @@ export const Dashboard = ({ navigate }) => {
                     <span style={{ fontSize: 10, color: "rgba(255,255,255,0.8)" }}>{tx}</span>
                   </div>
                 ))}
+                {/* Counterpart timezone hint */}
+                {(() => {
+                  const therapistTime = convertTimeBetweenOffsets(
+                    MOCK.nextSession.time,
+                    MOCK.nextSession.patientUtcOffset,
+                    MOCK.nextSession.therapistUtcOffset
+                  );
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <Ic n="globe" s={10} c="rgba(255,255,255,0.4)" />
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>
+                        {therapistTime} {t("dashboard.theirTime")} {MOCK.nextSession.therapistName}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
               <Button variant="accent" size={isD ? "sm" : "xs"}>{t("dashboard.joinSession")}</Button>
             </div>

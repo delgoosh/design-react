@@ -226,3 +226,111 @@ export const TIME_OPTIONS = (() => {
   }
   return opts;
 })();
+
+// ── Timezone helpers ────────────────────────────────────────
+
+/** Common IANA timezone names — fallback when Intl.supportedValuesOf is unavailable */
+export const COMMON_TIMEZONES = [
+  "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles",
+  "America/Denver", "America/Chicago", "America/New_York",
+  "America/Sao_Paulo", "Atlantic/Reykjavik", "Europe/London",
+  "Europe/Paris", "Europe/Berlin", "Europe/Istanbul",
+  "Africa/Cairo", "Asia/Dubai", "Asia/Tehran",
+  "Asia/Karachi", "Asia/Kolkata", "Asia/Dhaka",
+  "Asia/Bangkok", "Asia/Shanghai", "Asia/Tokyo",
+  "Asia/Seoul", "Australia/Sydney", "Pacific/Auckland",
+  "America/Mexico_City", "America/Toronto", "Europe/Moscow",
+  "Africa/Nairobi", "Asia/Singapore", "Asia/Hong_Kong",
+];
+
+/** Get all IANA timezone names — tries Intl API first, falls back to curated list */
+export function getAllTimezones() {
+  try {
+    return Intl.supportedValuesOf("timeZone");
+  } catch {
+    return COMMON_TIMEZONES;
+  }
+}
+
+/**
+ * Parse a UTC offset string like "+03:30" or "-05:00" into total minutes.
+ * "+03:30" → 210, "-05:00" → -300
+ */
+export function parseUtcOffsetToMinutes(offsetStr) {
+  if (!offsetStr) return 0;
+  const sign = offsetStr.startsWith("-") ? -1 : 1;
+  const clean = offsetStr.replace(/^[+-]/, "");
+  const [h, m] = clean.split(":").map(Number);
+  return sign * (h * 60 + (m || 0));
+}
+
+/**
+ * Get UTC offset string for an IANA timezone name.
+ * e.g. "Asia/Tehran" → "+03:30"
+ */
+export function getTimezoneOffset(tzName) {
+  try {
+    const d = new Date();
+    const parts = d.toLocaleString("en-US", { timeZone: tzName, timeZoneName: "shortOffset" });
+    const m = parts.match(/GMT([+-]\d{1,2}(?::\d{2})?)/);
+    if (!m) return "+00:00";
+    let offset = m[1];
+    // Normalize: "+3" → "+03:00", "+3:30" → "+03:30"
+    if (!offset.includes(":")) offset += ":00";
+    const [sign, rest] = [offset[0], offset.slice(1)];
+    const [hh, mm] = rest.split(":");
+    return `${sign}${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
+  } catch {
+    return "+00:00";
+  }
+}
+
+/**
+ * Convert a time string between two UTC offsets.
+ * Handles both "10:00 AM"/"2:30 PM" (12h) and "14:00" (24h) formats.
+ *
+ * @param {string} timeStr - e.g. "10:00 AM" or "14:30"
+ * @param {string} fromOffset - e.g. "+03:30"
+ * @param {string} toOffset - e.g. "-05:00"
+ * @returns {string} converted time in same format as input
+ */
+export function convertTimeBetweenOffsets(timeStr, fromOffset, toOffset) {
+  if (!timeStr || !fromOffset || !toOffset) return timeStr;
+
+  // Detect format
+  const is12h = /[AaPp][Mm]/.test(timeStr);
+  let hours, minutes;
+
+  if (is12h) {
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/);
+    if (!match) return timeStr;
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+  } else {
+    const parts = timeStr.split(":").map(Number);
+    hours = parts[0];
+    minutes = parts[1] || 0;
+  }
+
+  // Convert to UTC, then to target offset
+  const fromMins = parseUtcOffsetToMinutes(fromOffset);
+  const toMins = parseUtcOffsetToMinutes(toOffset);
+  const diff = toMins - fromMins;
+
+  let totalMins = hours * 60 + minutes + diff;
+  // Wrap around 24h
+  totalMins = ((totalMins % 1440) + 1440) % 1440;
+
+  const newH = Math.floor(totalMins / 60);
+  const newM = totalMins % 60;
+
+  if (is12h) {
+    const period = newH >= 12 ? "PM" : "AM";
+    const displayH = newH === 0 ? 12 : newH > 12 ? newH - 12 : newH;
+    return `${displayH}:${String(newM).padStart(2, "0")} ${period}`;
+  }
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}

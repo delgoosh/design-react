@@ -6,13 +6,14 @@
 // session settings.
 // TODO(backend-integration): replace mock state with API data
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useLang, useIsDesktop,
   Card, Button, Tag, Avatar, Ic, BottomSheet,
   Checkbox, RadioGroup, Select,
 } from "@ds";
 import { COLORS, RADIUS } from "@ds";
+import { getAllTimezones, getTimezoneOffset } from "@shared/utils/availability.js";
 
 // ── Mock profile data (simulates onboarding responses) ──────
 const INITIAL_PROFILE = {
@@ -103,11 +104,6 @@ const expLabels = (t) => ({
   "5-10":t("onboarding.tq2v3"),
   "10+": t("onboarding.tq2v4"),
 });
-const formatLabels = (t) => ({
-  video: t("onboarding.tq3Video"),
-  audio: t("onboarding.tq3Audio"),
-  both:  t("onboarding.tq3Both"),
-});
 
 // ── Helpers ──────────────────────────────────────────────────
 const loc = (obj, lang) => (typeof obj === "string" ? obj : (obj?.[lang] || obj?.en || ""));
@@ -168,6 +164,14 @@ export const Profile = () => {
   const [editSection, setEditSection] = useState(null);
   const [draft, setDraft] = useState({});
 
+  // Timezone
+  const detectedTz = useMemo(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; }
+  }, []);
+  const [timezone, setTimezone] = useState(detectedTz);
+  const [showTzEdit, setShowTzEdit] = useState(false);
+  const tzOptions = useMemo(() => getAllTimezones().map((z) => ({ value: z, label: z })), []);
+
   // Open BottomSheet for a section
   const openEdit = (section) => {
     if (section === "personal") {
@@ -187,8 +191,6 @@ export const Profile = () => {
         ageGroups: [...q.ageGroups],
         genderIdentity: q.genderIdentity,
       });
-    } else if (section === "session") {
-      setDraft({ sessionFormat: q.sessionFormat });
     }
     setEditSection(section);
   };
@@ -210,8 +212,6 @@ export const Profile = () => {
       setQ((prev) => ({ ...prev, ...draft }));
     } else if (editSection === "matching") {
       setQ((prev) => ({ ...prev, ...draft }));
-    } else if (editSection === "session") {
-      setQ((prev) => ({ ...prev, ...draft }));
     }
     setEditSection(null);
   };
@@ -226,7 +226,6 @@ export const Profile = () => {
   const ages    = ageLabels(t);
   const genders = genderLabels(t);
   const exps    = expLabels(t);
-  const fmts    = formatLabels(t);
 
   const initials = loc(profile.firstName, lang).charAt(0) + loc(profile.lastName, lang).charAt(0);
 
@@ -235,6 +234,7 @@ export const Profile = () => {
       direction: dir,
       maxWidth: isD ? 700 : 480,
       margin: "0 auto",
+      padding: isD ? 28 : 14, paddingBottom: 100,
       display: "flex", flexDirection: "column", gap: 16,
     }}>
       {/* ── Header ──────────────────────────────────────────── */}
@@ -285,10 +285,43 @@ export const Profile = () => {
         <FieldRow label={t("profile.genderIdentity")} value={genders[q.genderIdentity] || q.genderIdentity} />
       </Card>
 
-      {/* ── Session Settings ──────────────────────────────────── */}
+      {/* ── Timezone ───────────────────────────────────────────── */}
       <Card>
-        <SectionHeader title={t("profile.sessionSettingsTitle")} onEdit={() => openEdit("session")} t={t} />
-        <FieldRow label={t("onboarding.tq3Label")} value={fmts[q.sessionFormat] || q.sessionFormat} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)" }}>{t("profile.timezone")}</p>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginBottom: 10 }}>{t("profile.timezoneDesc")}</p>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+          borderRadius: RADIUS.sm, background: "var(--ds-cream)",
+        }}>
+          <Ic n="globe" s={16} c={COLORS.primary} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>{timezone}</p>
+            <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 2 }}>
+              UTC{getTimezoneOffset(timezone)} · {t("profile.timezoneDetected")}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowTzEdit(!showTzEdit)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 600, color: COLORS.primary, fontFamily: "inherit",
+            }}
+          >
+            {t("profile.editSection")}
+          </button>
+        </div>
+        {showTzEdit && (
+          <div style={{ marginTop: 10 }}>
+            <Select
+              options={tzOptions}
+              value={timezone}
+              onChange={(v) => { setTimezone(v); setShowTzEdit(false); }}
+              placeholder={t("calendar.timezoneSelect")}
+            />
+          </div>
+        )}
       </Card>
 
       {/* ═══ EDIT BOTTOM SHEETS ═══════════════════════════════ */}
@@ -405,23 +438,6 @@ export const Profile = () => {
         </BottomSheet>
       )}
 
-      {/* Session Settings Edit */}
-      {editSection === "session" && (
-        <BottomSheet onClose={() => setEditSection(null)}>
-          <h3 className="ds-heading" style={{ fontSize: 17, color: "var(--ds-text)", marginBottom: 16 }}>
-            {t("profile.sessionSettingsTitle")}
-          </h3>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>{t("onboarding.tq3Label")}</p>
-            <RadioGroup
-              options={Object.entries(fmts).map(([value, label]) => ({ value, label }))}
-              value={draft.sessionFormat}
-              onChange={(v) => setDraft((d) => ({ ...d, sessionFormat: v }))}
-            />
-          </div>
-          <SheetButtons onCancel={() => setEditSection(null)} onSave={saveDraft} t={t} />
-        </BottomSheet>
-      )}
     </div>
   );
 };

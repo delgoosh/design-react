@@ -4,7 +4,7 @@
 // generated automatically within each range.
 // ─────────────────────────────────────────────────────────────
 import { useState, useMemo } from "react";
-import { useLang, Button, Ic, Tag } from "@ds";
+import { useLang, Button, Ic, Tag, Select } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 import { SCHEDULE_DAYS } from "./mockData.js";
 import {
@@ -16,6 +16,7 @@ import {
   countBlocksInRange,
   generateTherapistBlocks,
   BLOCK_DURATION_MIN,
+  getAllTimezones,
 } from "@shared/utils/availability.js";
 
 export const StepTherapistSchedule = ({ onComplete, onBack }) => {
@@ -27,9 +28,11 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
     return init;
   });
 
-  const detectedTz = useMemo(() => {
+  const [detectedTz, setDetectedTz] = useState(() => {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; }
-  }, []);
+  });
+  const [showTzSelect, setShowTzSelect] = useState(false);
+  const tzOptions = useMemo(() => getAllTimezones().map((z) => ({ value: z, label: z })), []);
 
   // Total blocks across all days
   const totalBlocks = useMemo(() => {
@@ -85,15 +88,37 @@ export const StepTherapistSchedule = ({ onComplete, onBack }) => {
         </p>
       </div>
 
-      {/* Timezone */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        padding: "6px 12px", borderRadius: RADIUS.sm,
-        background: `${COLORS.primary}10`, fontSize: 11, color: "var(--ds-text-mid)",
-      }}>
-        <Ic n="globe" s={14} c={COLORS.primary} />
-        {t("calendar.timezone")}: {detectedTz}
-      </div>
+      {/* Timezone — editable */}
+      {showTzSelect ? (
+        <div style={{ maxWidth: 340, margin: "0 auto", width: "100%" }}>
+          <Select
+            options={tzOptions}
+            value={detectedTz}
+            onChange={(v) => { setDetectedTz(v); setShowTzSelect(false); }}
+            placeholder={t("calendar.timezoneSelect")}
+          />
+        </div>
+      ) : (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          padding: "6px 12px", borderRadius: RADIUS.sm,
+          background: `${COLORS.primary}10`, fontSize: 11, color: "var(--ds-text-mid)",
+        }}>
+          <Ic n="globe" s={14} c={COLORS.primary} />
+          {t("calendar.timezone")}: {detectedTz}
+          <button
+            onClick={() => setShowTzSelect(true)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 11, color: COLORS.primary, fontWeight: 600,
+              fontFamily: "inherit", textDecoration: "underline",
+              marginInlineStart: 4,
+            }}
+          >
+            {t("calendar.timezoneChange")}
+          </button>
+        </div>
+      )}
 
       {/* Day rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

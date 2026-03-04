@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, SessionCard, Textarea, BottomSheet } from "@ds";
-import { COLORS, RADIUS } from "@ds";
+import { COLORS, RADIUS, FONTS } from "@ds";
 
 // ── Mock data ─────────────────────────────────────────────────
 const MOCK_PATIENTS = [
@@ -44,9 +44,43 @@ const MOCK_PATIENTS = [
       },
     ],
     pastSessions: [
-      { id: "s1", date: { en: "Feb 25, 10:00 AM", fa: "۶ اسفند، ۱۰:۰۰" }, topic: { en: "Anxiety management", fa: "مدیریت اضطراب" }, hasTranscript: true, hasAiSummary: true, hasNote: true },
-      { id: "s2", date: { en: "Feb 18, 10:00 AM", fa: "۲۹ بهمن، ۱۰:۰۰" }, topic: { en: "Anxiety triggers", fa: "محرک‌های اضطراب" }, hasTranscript: true, hasAiSummary: false, hasNote: false },
-      { id: "s3", date: { en: "Feb 11, 10:00 AM", fa: "۲۲ بهمن، ۱۰:۰۰" }, topic: { en: "Cognitive restructuring", fa: "بازسازی شناختی" }, hasTranscript: true, hasAiSummary: true, hasNote: true },
+      {
+        id: "s1", date: { en: "Feb 25, 10:00 AM", fa: "۶ اسفند، ۱۰:۰۰" }, topic: { en: "Anxiety management", fa: "مدیریت اضطراب" }, hasTranscript: true, hasAiSummary: true, hasNote: true,
+        transcriptText: {
+          en: "Therapist: How have you been feeling since our last session?\n\nSara: I've been doing a bit better, actually. The breathing exercises have helped when I feel the anxiety coming on, especially in the mornings before work.\n\nTherapist: That's great progress. Can you tell me more about what triggers the anxiety in the mornings?\n\nSara: It's usually when I start thinking about my workload. I have this pattern of catastrophizing — imagining everything going wrong before the day even starts.\n\nTherapist: Let's work on some cognitive restructuring techniques today. When you notice that pattern, I'd like you to try identifying the specific thought and asking yourself: what evidence do I have that this will actually happen?",
+          fa: "درمانگر: از جلسه قبل تا حالا چه حالی داشتید؟\n\nسارا: راستش کمی بهتر بوده. تمرین‌های تنفس وقتی احساس می‌کنم اضطراب داره میاد کمک کرده، مخصوصاً صبح‌ها قبل از کار.\n\nدرمانگر: این پیشرفت خوبی‌ه. می‌تونید بیشتر بگید چه چیزی صبح‌ها اضطراب رو تحریک می‌کنه؟\n\nسارا: معمولاً وقتی شروع می‌کنم به فکر کردن درباره حجم کارم. یه الگوی فاجعه‌سازی دارم — تصور می‌کنم همه چیز قبل از شروع روز خراب می‌شه.\n\nدرمانگر: بیایید امروز روی تکنیک‌های بازسازی شناختی کار کنیم. وقتی این الگو رو متوجه می‌شید، می‌خوام سعی کنید فکر خاص رو شناسایی کنید و از خودتان بپرسید: چه مدرکی دارم که این واقعاً اتفاق بیفتد؟",
+        },
+        aiSummaryText: {
+          en: "Session focused on anxiety management with cognitive restructuring techniques.\n\nKey observations:\n• Patient reports improvement with breathing exercises, particularly effective in morning anxiety episodes\n• Primary trigger identified: work-related catastrophizing thoughts\n• Pattern of anticipatory anxiety with cognitive distortion\n\nInterventions used:\n• Cognitive restructuring — evidence-based thought challenging\n• Continued breathing exercises as coping mechanism\n\nRecommendations:\n• Continue daily breathing practice\n• Introduce thought record journal\n• Follow up on sleep quality next session",
+          fa: "جلسه بر مدیریت اضطراب با تکنیک‌های بازسازی شناختی متمرکز بود.\n\nمشاهدات کلیدی:\n• بیمار بهبود با تمرین‌های تنفس گزارش می‌دهد\n• محرک اصلی شناسایی شده: افکار فاجعه‌ساز مرتبط با کار\n• الگوی اضطراب پیش‌بینانه با تحریف شناختی\n\nمداخلات استفاده‌شده:\n• بازسازی شناختی — چالش فکر مبتنی بر شواهد\n• ادامه تمرین‌های تنفس به‌عنوان مکانیسم مقابله\n\nتوصیه‌ها:\n• ادامه تمرین تنفس روزانه\n• معرفی دفترچه ثبت افکار\n• پیگیری کیفیت خواب در جلسه بعدی",
+        },
+        noteText: {
+          en: "Patient showing steady improvement in anxiety management. Breathing exercises are effective as a first-line coping strategy. Need to monitor catastrophizing patterns more closely and introduce structured thought records.",
+          fa: "بیمار بهبود پایداری در مدیریت اضطراب نشان می‌دهد. تمرین‌های تنفس به‌عنوان راهبرد مقابله‌ای خط اول مؤثر است. نیاز به نظارت دقیق‌تر بر الگوهای فاجعه‌سازی و معرفی ثبت ساختارمند افکار.",
+        },
+      },
+      {
+        id: "s2", date: { en: "Feb 18, 10:00 AM", fa: "۲۹ بهمن، ۱۰:۰۰" }, topic: { en: "Anxiety triggers", fa: "محرک‌های اضطراب" }, hasTranscript: true, hasAiSummary: false, hasNote: false,
+        transcriptText: {
+          en: "Therapist: Today I'd like us to map out your anxiety triggers. Can you walk me through a recent situation?\n\nSara: Last Thursday, I had a presentation at work. The night before, I couldn't sleep at all. My heart was racing and I kept thinking I'd forget everything.\n\nTherapist: What happened during the actual presentation?\n\nSara: It actually went fine. My manager even said it was good. But the build-up was terrible.\n\nTherapist: This is a common pattern — the anticipation is often much worse than the event itself. Let's create a hierarchy of situations that trigger anxiety for you.",
+          fa: "درمانگر: امروز می‌خوام محرک‌های اضطراب شما رو نقشه‌برداری کنیم. می‌تونید یه موقعیت اخیر رو توضیح بدید؟\n\nسارا: پنجشنبه گذشته ارائه‌ای در کار داشتم. شب قبلش اصلاً نتونستم بخوابم. قلبم تند می‌زد و مدام فکر می‌کردم همه چیز یادم می‌ره.\n\nدرمانگر: خود ارائه چطور پیش رفت؟\n\nسارا: واقعاً خوب پیش رفت. مدیرم حتی گفت خوب بود. ولی تنش قبلش وحشتناک بود.\n\nدرمانگر: این یه الگوی رایجه — پیش‌بینی اغلب خیلی بدتر از خود رویداده. بیایید یه سلسله‌مراتب از موقعیت‌هایی که اضطراب ایجاد می‌کنن بسازیم.",
+        },
+      },
+      {
+        id: "s3", date: { en: "Feb 11, 10:00 AM", fa: "۲۲ بهمن، ۱۰:۰۰" }, topic: { en: "Cognitive restructuring", fa: "بازسازی شناختی" }, hasTranscript: true, hasAiSummary: true, hasNote: true,
+        transcriptText: {
+          en: "Therapist: Let's review the thought record you've been keeping. Were there any patterns you noticed?\n\nSara: Yes, I noticed that most of my negative thoughts happen on Sunday evenings. It's like a switch flips and I start dreading Monday.\n\nTherapist: That's excellent self-awareness. What thoughts come up specifically?\n\nSara: Things like 'I'll never catch up' or 'Everyone will see I'm struggling.' When I wrote them down, they seemed less scary.\n\nTherapist: That's exactly the power of cognitive restructuring. Writing the thought makes it concrete, and then we can examine it objectively.",
+          fa: "درمانگر: بیایید دفترچه ثبت افکار رو مرور کنیم. آیا الگویی متوجه شدید؟\n\nسارا: بله، متوجه شدم بیشتر افکار منفی‌ام یکشنبه شب‌ها اتفاق می‌افته. انگار یه کلید زده می‌شه و شروع می‌کنم از دوشنبه وحشت داشتن.\n\nدرمانگر: این خودآگاهی عالی‌ه. دقیقاً چه افکاری میان؟\n\nسارا: چیزهایی مثل «هیچ‌وقت نمی‌رسم» یا «همه می‌بینن دارم تقلا می‌کنم.» وقتی نوشتمشون، کمتر ترسناک به نظر رسیدن.\n\nدرمانگر: دقیقاً قدرت بازسازی شناختی همینه. نوشتن فکر اون رو ملموس می‌کنه و بعد می‌تونیم عینی بررسیش کنیم.",
+        },
+        aiSummaryText: {
+          en: "Session introduced cognitive restructuring through thought records.\n\nKey findings:\n• Sunday evenings identified as peak anxiety trigger point\n• Common automatic thoughts: 'I'll never catch up', 'Everyone will see I'm struggling'\n• Patient demonstrates growing self-awareness through journaling\n\nProgress:\n• Thought recording reducing perceived threat level\n• Patient engaging well with homework assignments",
+          fa: "جلسه بازسازی شناختی از طریق ثبت افکار معرفی شد.\n\nیافته‌های کلیدی:\n• یکشنبه شب‌ها به‌عنوان نقطه اوج محرک اضطراب شناسایی شد\n• افکار خودکار رایج: «هیچ‌وقت نمی‌رسم»، «همه می‌بینن تقلا می‌کنم»\n• بیمار خودآگاهی فزاینده‌ای از طریق دفترچه‌نویسی نشان می‌دهد\n\nپیشرفت:\n• ثبت افکار سطح تهدید درک‌شده را کاهش می‌دهد\n• بیمار به‌خوبی با تکالیف درگیر می‌شود",
+        },
+        noteText: {
+          en: "Good progress with thought records. Sunday evening pattern is significant — consider scheduling a brief check-in message on Sunday evenings as preventive support.",
+          fa: "پیشرفت خوب با ثبت افکار. الگوی یکشنبه شب مهم است — ارسال پیام کوتاه یکشنبه شب‌ها به‌عنوان حمایت پیشگیرانه در نظر گرفته شود.",
+        },
+      },
     ],
     assignments: [
       { id: "a1", type: "breathing",     title: { en: "Daily breathing exercise", fa: "تمرین تنفس روزانه" },   status: "active", progress: 40, date: { en: "Feb 20", fa: "۱ اسفند" } },
@@ -80,7 +114,13 @@ const MOCK_PATIENTS = [
     pendingItems: 0,
     generalNotes: [],
     pastSessions: [
-      { id: "s4", date: { en: "Feb 24, 2:00 PM", fa: "۵ اسفند، ۱۴:۰۰" }, topic: { en: "Depression follow-up", fa: "پیگیری افسردگی" }, hasTranscript: true, hasAiSummary: false, hasNote: false },
+      {
+        id: "s4", date: { en: "Feb 24, 2:00 PM", fa: "۵ اسفند، ۱۴:۰۰" }, topic: { en: "Depression follow-up", fa: "پیگیری افسردگی" }, hasTranscript: true, hasAiSummary: false, hasNote: false,
+        transcriptText: {
+          en: "Therapist: Ali, how has your mood been this past week?\n\nAli: It's been up and down. I had a couple of good days where I actually felt motivated to go for a walk, but then the weekend hit and I just stayed in bed most of the time.\n\nTherapist: Those good days are important. What was different about them?\n\nAli: I think it was because I had plans with a friend. Having something to look forward to helped.\n\nTherapist: That's an insightful observation. Social connection seems to be a protective factor for you. Let's explore how we can build more of that into your routine.",
+          fa: "درمانگر: علی، این هفته خلقتون چطور بوده؟\n\nعلی: بالا و پایین بوده. چند روز خوب داشتم که واقعاً انگیزه داشتم برم پیاده‌روی، ولی آخر هفته رسید و بیشتر وقتم رو تو تخت موندم.\n\nدرمانگر: اون روزهای خوب مهم‌ان. چه فرقی داشتن؟\n\nعلی: فکر کنم چون با یه دوست قرار داشتم. داشتن چیزی برای منتظرش بودن کمک کرد.\n\nدرمانگر: این مشاهده بصیرت‌آمیزیه. ارتباط اجتماعی انگار یه عامل محافظتی برای شماست. بیایید ببینیم چطور می‌تونیم بیشتر از این رو تو برنامه روزانه‌تون بگنجونیم.",
+        },
+      },
     ],
     assignments: [],
     engagement: { firstSession: { en: "Nov 5, 2024", fa: "۱۵ آبان ۱۴۰۳" }, onboardingComplete: true, chatMessages: 3 },
@@ -123,7 +163,21 @@ const MOCK_PATIENTS = [
       { id: "n3", text: { en: "Patient may not return — mentioned financial constraints.", fa: "ممکن است بیمار برنگردد — محدودیت مالی ذکر کرد." }, date: { en: "Feb 20, 2025", fa: "۱ اسفند ۱۴۰۳" } },
     ],
     pastSessions: [
-      { id: "s6", date: { en: "Feb 20, 9:00 AM", fa: "۱ اسفند، ۹:۰۰" }, topic: { en: "Stress management", fa: "مدیریت استرس" }, hasTranscript: true, hasAiSummary: true, hasNote: true },
+      {
+        id: "s6", date: { en: "Feb 20, 9:00 AM", fa: "۱ اسفند، ۹:۰۰" }, topic: { en: "Stress management", fa: "مدیریت استرس" }, hasTranscript: true, hasAiSummary: true, hasNote: true,
+        transcriptText: {
+          en: "Therapist: Nima, you mentioned last time that you've been under a lot of financial pressure. How has that been this week?\n\nNima: Honestly, it's gotten worse. I'm not sure I can continue therapy because of the costs.\n\nTherapist: I understand. Let's talk about that openly. There may be options we can explore together.\n\nNima: I appreciate that. The gratitude practice has actually been helping me see the good things around me, even when things are tough.",
+          fa: "درمانگر: نیما، دفعه قبل گفتید فشار مالی زیادی دارید. این هفته چطور بوده؟\n\nنیما: صادقانه بگم، بدتر شده. مطمئن نیستم بتونم درمان رو ادامه بدم به‌خاطر هزینه‌ها.\n\nدرمانگر: درک می‌کنم. بیایید صریح درباره‌اش صحبت کنیم. شاید گزینه‌هایی باشه که با هم بررسی کنیم.\n\nنیما: ممنونم. تمرین قدردانی واقعاً کمک کرده چیزهای خوب اطرافم رو ببینم، حتی وقتی اوضاع سخته.",
+        },
+        aiSummaryText: {
+          en: "Session addressed financial barriers to continued therapy and stress management.\n\nKey concerns:\n• Patient expressing difficulty continuing therapy due to financial constraints\n• Financial stress compounding existing anxiety\n\nPositive indicators:\n• Gratitude practice showing beneficial effects on outlook\n• Patient maintains engagement despite difficulties\n\nAction items:\n• Explore sliding scale or reduced frequency options\n• Provide self-help resources for between sessions",
+          fa: "جلسه به موانع مالی ادامه درمان و مدیریت استرس پرداخت.\n\nنگرانی‌های کلیدی:\n• بیمار از مشکل ادامه درمان به‌دلیل محدودیت مالی می‌گوید\n• استرس مالی اضطراب موجود را تشدید می‌کند\n\nنشانه‌های مثبت:\n• تمرین قدردانی اثرات مفیدی بر دیدگاه نشان می‌دهد\n• بیمار با وجود مشکلات درگیر باقی می‌ماند\n\nاقدامات:\n• بررسی گزینه‌های تعدیل هزینه یا کاهش فراوانی جلسات\n• ارائه منابع خودیاری برای بین جلسات",
+        },
+        noteText: {
+          en: "Patient at risk of dropping out due to financial constraints. Consider reduced session frequency or sliding scale. Gratitude practice is an effective self-help tool to maintain.",
+          fa: "بیمار در خطر ترک درمان به‌دلیل محدودیت مالی. کاهش فراوانی جلسات یا تعدیل هزینه در نظر گرفته شود. تمرین قدردانی ابزار خودیاری مؤثری برای ادامه است.",
+        },
+      },
     ],
     assignments: [
       { id: "a5", type: "mindfulness", title: { en: "Gratitude practice", fa: "تمرین قدردانی" }, status: "done", date: { en: "Feb 10", fa: "۲۱ بهمن" },
@@ -397,6 +451,7 @@ export const Patients = ({ setTab }) => {
   const [sessionNoteText, setSessionNoteText] = useState("");
   const [mockSessionNotes, setMockSessionNotes] = useState({});     // {sessionId: noteText}
   const [viewAssignment, setViewAssignment]     = useState(null);     // assignment object to show result
+  const [viewPanel, setViewPanel]               = useState(null);     // { type: "transcript"|"summary"|"note", session }
 
   const gap = isD ? 20 : 12;
   const pad = isD ? 28 : 14;
@@ -631,7 +686,7 @@ export const Patients = ({ setTab }) => {
                 </div>
                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   {s.hasTranscript && (
-                    <button style={{
+                    <button onClick={() => setViewPanel({ type: "transcript", session: s })} style={{
                       display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
                       borderRadius: RADIUS.sm, border: `1px solid ${COLORS.primaryGhost}`,
                       background: COLORS.primaryGhost, cursor: "pointer", fontFamily: "inherit",
@@ -641,7 +696,7 @@ export const Patients = ({ setTab }) => {
                     </button>
                   )}
                   {s.hasAiSummary && (
-                    <button style={{
+                    <button onClick={() => setViewPanel({ type: "summary", session: s })} style={{
                       display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
                       borderRadius: RADIUS.sm, border: `1px solid ${COLORS.successGhost}`,
                       background: COLORS.successGhost, cursor: "pointer", fontFamily: "inherit",
@@ -651,7 +706,7 @@ export const Patients = ({ setTab }) => {
                     </button>
                   )}
                   {(s.hasNote || mockSessionNotes[s.id]) && (
-                    <button style={{
+                    <button onClick={() => setViewPanel({ type: "note", session: s, localNote: mockSessionNotes[s.id] })} style={{
                       display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
                       borderRadius: RADIUS.sm, border: `1px solid ${COLORS.primaryGhost}`,
                       background: COLORS.primaryGhost, cursor: "pointer", fontFamily: "inherit",
@@ -841,6 +896,66 @@ export const Patients = ({ setTab }) => {
             onClose={() => setViewAssignment(null)}
           />
         )}
+
+        {/* ── Read-only panel BottomSheet (transcript / AI summary / note) ── */}
+        {viewPanel && (() => {
+          const s = viewPanel.session;
+          const isTranscript = viewPanel.type === "transcript";
+          const isSummary    = viewPanel.type === "summary";
+          const isNote       = viewPanel.type === "note";
+          const title = isTranscript ? t("session.transcript") : isSummary ? t("session.aiSummary") : t("session.therapistNotes");
+          const icon  = isTranscript ? "file" : isSummary ? "bot" : "pen";
+          const color = isSummary ? COLORS.success : COLORS.primary;
+          const ghost = isSummary ? COLORS.successGhost : COLORS.primaryGhost;
+          const text  = isTranscript ? loc(s.transcriptText, lang)
+                      : isSummary   ? loc(s.aiSummaryText, lang)
+                      : viewPanel.localNote || loc(s.noteText, lang);
+          return (
+            <BottomSheet onClose={() => setViewPanel(null)}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: RADIUS.sm, background: ghost,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <Ic n={icon} s={16} c={color} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)" }}>{title}</p>
+                    <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 2 }}>
+                      {loc(s.topic, lang)} · {loc(s.date, lang)}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setViewPanel(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                  <Ic n="x" s={18} c="var(--ds-text-mid)" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{
+                borderRadius: RADIUS.lg, background: "var(--ds-cream)",
+                borderInlineStart: `3px solid ${color}`, marginBottom: 16,
+                overflow: "hidden",
+              }}>
+                <div style={{ padding: 16, maxHeight: "55vh", overflowY: "auto" }}>
+                  <p style={{
+                    fontFamily: FONTS.note.family, fontSize: 14, lineHeight: 1.9,
+                    color: "var(--ds-text)", whiteSpace: "pre-wrap",
+                  }}>
+                    {text}
+                  </p>
+                </div>
+              </div>
+
+              {/* Close */}
+              <Button variant="ghost2" size="sm" onClick={() => setViewPanel(null)} style={{ width: "100%" }}>
+                {t("action.close")}
+              </Button>
+            </BottomSheet>
+          );
+        })()}
       </div>
     );
   }

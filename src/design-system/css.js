@@ -11,6 +11,7 @@ export const makeGlobalCSS = (lang) => {
 
   return `
     @import url('${f.import}');
+    @import url('${FONTS.note.import}');
 
     /* ── Theme tokens (CSS custom properties) ──── */
     :root {
