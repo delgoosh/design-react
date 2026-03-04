@@ -482,7 +482,7 @@ export const Earnings = () => {
                       textDecoration: "none", fontWeight: 500,
                     }}
                   >
-                    {t("earnings.viewOnExplorer")} {explorerName(tx.network)} →
+                    {t("earnings.viewOnExplorer")} {explorerName(tx.network)} {dir === "rtl" ? "←" : "→"}
                   </a>
                 )}
               </div>
