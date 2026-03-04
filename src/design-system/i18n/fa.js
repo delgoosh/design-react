@@ -137,6 +137,27 @@ export default {
     recommended:      "پیشنهادی برای شما",
     withTherapist:    "با",
   },
+  // ── Notes ───────────────────────────────────────────────
+  notes: {
+    sheetTitle:        "یادداشت جلسه",
+    statusDraft:       "پیش‌نویس",
+    statusSubmitted:   "ثبت‌شده",
+    statusLocked:      "قفل‌شده",
+    saving:            "در حال ذخیره...",
+    saved:             "ذخیره شد",
+    unsaved:           "تغییرات ذخیره‌نشده",
+    submitNote:        "ثبت یادداشت",
+    editNote:          "ویرایش یادداشت",
+    submitConfirm:     "این یادداشت ثبت شود؟ تا ۳ روز امکان ویرایش دارید.",
+    lockWarning:       "این یادداشت قفل شده و قابل ویرایش نیست.",
+    daysLeft:          "روز تا قفل شدن",
+    dayLeft:           "روز تا قفل شدن",
+    hoursLeft:         "ساعت تا قفل شدن",
+    private:           "فقط برای شما قابل مشاهده",
+    placeholder:       "یادداشت جلسه را بنویسید...",
+    forSession:        "جلسه با",
+    deleteDraft:       "حذف پیش‌نویس",
+  },
   // ── Sessions ─────────────────────────────────────────────
   session: {
     transcript:      "رونوشت جلسه",

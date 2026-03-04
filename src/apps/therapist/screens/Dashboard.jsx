@@ -7,10 +7,44 @@
 // TODO(backend-integration): all data is mock — replace with
 // real API calls for sessions, patients, notes, earnings, etc.
 // ─────────────────────────────────────────────────────────────
-import { useState, useRef } from "react";
-import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, StatCard, SessionCard } from "@ds";
-import { COLORS, RADIUS } from "@ds";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, StatCard, SessionCard, BottomSheet, Textarea } from "@ds";
+import { COLORS, RADIUS, FONTS } from "@ds";
 import { convertTimeBetweenOffsets } from "@shared/utils/availability.js";
+
+// ── Note constants & helpers ──────────────────────────────────
+const LOCK_DAYS = 3;
+const AUTOSAVE_DELAY = 2000;
+const LS_KEY = "delgoosh_therapist_notes";
+
+const loadNotes = () => {
+  try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : {}; }
+  catch { return {}; }
+};
+const persistNotes = (notes) => {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(notes)); } catch { /* quota */ }
+};
+
+/** Compute effective status — auto-lock after LOCK_DAYS past submission */
+const effectiveStatus = (note) => {
+  if (!note || note.status === "empty") return "empty";
+  if (note.status === "draft") return "draft";
+  if (note.status === "submitted") {
+    const lockTime = new Date(note.submittedAt).getTime() + LOCK_DAYS * 86400000;
+    return Date.now() >= lockTime ? "locked" : "submitted";
+  }
+  return note.status;
+};
+
+/** Returns { days, hours, totalHours } until lock, or null */
+const editTimeRemaining = (note) => {
+  if (!note || note.status !== "submitted") return null;
+  const lockTime = new Date(note.submittedAt).getTime() + LOCK_DAYS * 86400000;
+  const diff = lockTime - Date.now();
+  if (diff <= 0) return null;
+  const totalHours = Math.floor(diff / 3600000);
+  return { days: Math.floor(totalHours / 24), hours: totalHours % 24, totalHours };
+};
 
 // ── Mock data ─────────────────────────────────────────────────
 // TODO(backend-integration): replace with real API data
@@ -94,6 +128,62 @@ export const Dashboard = ({ setTab }) => {
   const notesRef = useRef(null);
   const scrollToNotes = () => notesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // ── Notes state ───────────────────────────────────────────
+  const [notes, setNotes] = useState(loadNotes);
+  const [activeNoteId, setActiveNoteId] = useState(null);
+  const [noteText, setNoteText] = useState("");
+  const [saveStatus, setSaveStatus] = useState("saved");
+  const autoSaveTimer = useRef(null);
+
+  // Persist notes to localStorage on every change
+  useEffect(() => { persistNotes(notes); }, [notes]);
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(autoSaveTimer.current), []);
+
+  const debouncedSave = useCallback((sessionId, text) => {
+    clearTimeout(autoSaveTimer.current);
+    setSaveStatus("unsaved");
+    autoSaveTimer.current = setTimeout(() => {
+      setSaveStatus("saving");
+      setNotes((prev) => {
+        const existing = prev[sessionId] || { sessionId, status: "empty", content: "", createdAt: null, updatedAt: null, submittedAt: null };
+        const now = new Date().toISOString();
+        return { ...prev, [sessionId]: { ...existing, content: text, status: existing.status === "empty" ? "draft" : existing.status, createdAt: existing.createdAt || now, updatedAt: now } };
+      });
+      setTimeout(() => setSaveStatus("saved"), 400);
+    }, AUTOSAVE_DELAY);
+  }, []);
+
+  const handleNoteChange = (text) => { setNoteText(text); if (activeNoteId != null) debouncedSave(activeNoteId, text); };
+
+  const openNote = (sessionId) => {
+    const existing = notes[sessionId];
+    setActiveNoteId(sessionId);
+    setNoteText(existing?.content || "");
+    setSaveStatus("saved");
+  };
+
+  const closeNote = () => {
+    clearTimeout(autoSaveTimer.current);
+    if (activeNoteId != null && noteText.trim()) {
+      setNotes((prev) => {
+        const existing = prev[activeNoteId] || { sessionId: activeNoteId, status: "empty", content: "", createdAt: null, updatedAt: null, submittedAt: null };
+        const now = new Date().toISOString();
+        return { ...prev, [activeNoteId]: { ...existing, content: noteText, status: existing.status === "empty" ? "draft" : existing.status, createdAt: existing.createdAt || now, updatedAt: now } };
+      });
+    }
+    setActiveNoteId(null); setNoteText(""); setSaveStatus("saved");
+  };
+
+  const submitNote = () => {
+    if (activeNoteId == null || !noteText.trim()) return;
+    const now = new Date().toISOString();
+    setNotes((prev) => ({ ...prev, [activeNoteId]: { ...(prev[activeNoteId] || {}), content: noteText, status: "submitted", submittedAt: now, updatedAt: now } }));
+    setSaveStatus("saved");
+  };
+
+  const pendingCount = MOCK.pendingNotes.filter((n) => { const s = effectiveStatus(notes[n.id]); return s === "empty" || s === "draft"; }).length;
+
   // Time-based greeting
   const hour = new Date().getHours();
   const greetKey = hour < 12 ? "goodMorning" : hour < 17 ? "goodAfternoon" : "goodEvening";
@@ -176,7 +266,7 @@ export const Dashboard = ({ setTab }) => {
           { icon: "money", value: loc(MOCK.stats.monthEarnings, lang), label: t("dashboard.monthEarnings"), color: COLORS.success, cta: t("earnings.requestWithdraw"), onClick: () => setTab?.("earnings") },
           { icon: "users", value: MOCK.stats.activePatients, label: t("dashboard.activePatients"), color: COLORS.primary, cta: t("nav.patients"), onClick: () => setTab?.("patients") },
           { icon: "video", value: MOCK.stats.weekSessions,   label: t("dashboard.weekSessions"),   color: COLORS.primaryDark, cta: t("nav.calendar"), onClick: () => setTab?.("calendar") },
-          { icon: "edit",  value: MOCK.stats.pendingNotes,   label: t("dashboard.pendingNotes"),   color: COLORS.warn, cta: t("dashboard.pendingNotes"), onClick: scrollToNotes },
+          { icon: "edit",  value: pendingCount,              label: t("dashboard.pendingNotes"),   color: COLORS.warn, cta: t("dashboard.pendingNotes"), onClick: scrollToNotes },
         ].map((s, i) => (
           <div key={i} onClick={s.onClick} role="button" tabIndex={0} style={{
             background: "var(--ds-card-bg)", borderRadius: 14, padding: isD ? "12px 14px" : "10px 12px",
@@ -234,9 +324,9 @@ export const Dashboard = ({ setTab }) => {
       <Card style={{ marginBottom: gap }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>
-            {MOCK.pendingNotes.length} {t("dashboard.pendingNotes")}
+            {pendingCount} {t("dashboard.pendingNotes")}
           </p>
-          <Tag color="warn">{t("dashboard.noteRequired")}</Tag>
+          {pendingCount > 0 && <Tag color="warn">{t("dashboard.noteRequired")}</Tag>}
         </div>
         {MOCK.pendingNotes.map((note) => (
           <div key={note.id} style={{
@@ -255,11 +345,28 @@ export const Dashboard = ({ setTab }) => {
                     <Ic n="chev" s={12} c={COLORS.textLight} style={{ transform: dir === "rtl" ? undefined : "rotate(180deg)" }} />
                   </button>
                 </div>
-                <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 1 }}>
-                  {loc(note.topic, lang)} · {loc(note.date, lang)}
-                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+                  <p style={{ fontSize: 11, color: "var(--ds-text-light)" }}>
+                    {loc(note.topic, lang)} · {loc(note.date, lang)}
+                  </p>
+                  {effectiveStatus(notes[note.id]) === "draft" && (
+                    <Tag color="warn" style={{ fontSize: 8, padding: "1px 5px" }}>{t("notes.statusDraft")}</Tag>
+                  )}
+                  {effectiveStatus(notes[note.id]) === "submitted" && (
+                    <Tag color="success" style={{ fontSize: 8, padding: "1px 5px" }}>{t("notes.statusSubmitted")}</Tag>
+                  )}
+                  {effectiveStatus(notes[note.id]) === "locked" && (
+                    <Tag color="neutral" style={{ fontSize: 8, padding: "1px 5px" }}>{t("notes.statusLocked")}</Tag>
+                  )}
+                </div>
               </div>
-              <Button variant="primary" size="xs">{t("dashboard.addNote")}</Button>
+              {(() => {
+                const status = effectiveStatus(notes[note.id]);
+                if (status === "draft") return <Button variant="ghost" size="xs" onClick={() => openNote(note.id)}><Ic n="pen" s={11} c={COLORS.primary} /> {t("notes.editNote")}</Button>;
+                if (status === "submitted") return <Button variant="ghost" size="xs" onClick={() => openNote(note.id)}><Ic n="pen" s={11} c={COLORS.success} /> {t("notes.editNote")}</Button>;
+                if (status === "locked") return <Button variant="ghost2" size="xs" onClick={() => openNote(note.id)}>{t("notes.statusLocked")}</Button>;
+                return <Button variant="primary" size="xs" onClick={() => openNote(note.id)}>{t("dashboard.addNote")}</Button>;
+              })()}
             </div>
             {/* Transcript / AI summary availability */}
             <div style={{ display: "flex", gap: 6, marginTop: 8, ...(dir === "rtl" ? { marginRight: 50 } : { marginLeft: 50 }) }}>
@@ -360,6 +467,105 @@ export const Dashboard = ({ setTab }) => {
           </Button>
         </Card>
       </div>
+
+      {/* ── Note BottomSheet ───────────────────────────────────── */}
+      {activeNoteId != null && (() => {
+        const session = MOCK.pendingNotes.find((n) => n.id === activeNoteId);
+        const noteData = notes[activeNoteId];
+        const status = effectiveStatus(noteData);
+        const isLocked = status === "locked";
+        const remaining = editTimeRemaining(noteData);
+        return (
+          <BottomSheet onClose={closeNote}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ds-text)" }}>{t("notes.sheetTitle")}</p>
+                <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 2 }}>
+                  {t("notes.forSession")} {loc(session?.patient, lang)} · {loc(session?.date, lang)}
+                </p>
+              </div>
+              <button onClick={closeNote} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                <Ic n="x" s={18} c="var(--ds-text-mid)" />
+              </button>
+            </div>
+
+            {/* Status row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              {status === "draft" && <Tag color="warn">{t("notes.statusDraft")}</Tag>}
+              {status === "submitted" && <Tag color="success">{t("notes.statusSubmitted")}</Tag>}
+              {isLocked && <Tag color="neutral">{t("notes.statusLocked")}</Tag>}
+              {remaining && (
+                <span style={{ fontSize: 10, color: COLORS.warn, fontWeight: 600 }}>
+                  {remaining.days > 0
+                    ? `${remaining.days} ${remaining.days === 1 ? t("notes.dayLeft") : t("notes.daysLeft")}`
+                    : `${remaining.totalHours} ${t("notes.hoursLeft")}`}
+                </span>
+              )}
+              {!isLocked && (
+                <span style={{
+                  fontSize: 10, fontWeight: 600, marginInlineStart: "auto",
+                  color: saveStatus === "saving" ? COLORS.warn : saveStatus === "unsaved" ? COLORS.danger : COLORS.success,
+                }}>
+                  {saveStatus === "saving" ? t("notes.saving") : saveStatus === "unsaved" ? t("notes.unsaved") : t("notes.saved")}
+                </span>
+              )}
+            </div>
+
+            {/* Lock warning */}
+            {isLocked && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "10px 12px",
+                borderRadius: RADIUS.sm, background: "var(--ds-cream)", marginBottom: 12,
+              }}>
+                <Ic n="shield" s={14} c="var(--ds-text-light)" />
+                <span style={{ fontSize: 11, color: "var(--ds-text-mid)" }}>{t("notes.lockWarning")}</span>
+              </div>
+            )}
+
+            {/* Textarea */}
+            <Textarea
+              value={noteText}
+              onChange={isLocked ? undefined : handleNoteChange}
+              placeholder={t("notes.placeholder")}
+              rows={8}
+              style={{
+                fontFamily: FONTS.note.family, fontSize: 15, lineHeight: 1.8, marginBottom: 12,
+                ...(isLocked && { opacity: 0.7, pointerEvents: "none", background: "var(--ds-cream)" }),
+              }}
+            />
+
+            {/* Privacy note */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+              <Ic n="shield" s={11} c="var(--ds-text-light)" />
+              <span style={{ fontSize: 10, color: "var(--ds-text-light)", fontStyle: "italic" }}>{t("notes.private")}</span>
+            </div>
+
+            {/* Actions */}
+            {!isLocked ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button variant="ghost2" size="sm" onClick={closeNote} style={{ flex: 1 }}>
+                  {t("action.close")}
+                </Button>
+                {(status === "empty" || status === "draft") && (
+                  <Button variant="primary" size="sm" onClick={submitNote} disabled={!noteText.trim()} style={{ flex: 1 }}>
+                    {t("notes.submitNote")}
+                  </Button>
+                )}
+                {status === "submitted" && (
+                  <Button variant="primary" size="sm" onClick={submitNote} disabled={!noteText.trim()} style={{ flex: 1 }}>
+                    {t("action.save")}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button variant="ghost2" size="sm" onClick={closeNote} style={{ width: "100%" }}>
+                {t("action.close")}
+              </Button>
+            )}
+          </BottomSheet>
+        );
+      })()}
     </div>
   );
 };
