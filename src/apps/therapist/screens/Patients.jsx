@@ -935,16 +935,18 @@ export const Patients = ({ setTab }) => {
 
               {/* Content */}
               <div style={{
-                padding: 16, borderRadius: RADIUS.md, background: "var(--ds-cream)",
+                borderRadius: RADIUS.lg, background: "var(--ds-cream)",
                 borderInlineStart: `3px solid ${color}`, marginBottom: 16,
-                maxHeight: "55vh", overflowY: "auto",
+                overflow: "hidden",
               }}>
-                <p style={{
-                  fontFamily: FONTS.note.family, fontSize: 14, lineHeight: 1.9,
-                  color: "var(--ds-text)", whiteSpace: "pre-wrap",
-                }}>
-                  {text}
-                </p>
+                <div style={{ padding: 16, maxHeight: "55vh", overflowY: "auto" }}>
+                  <p style={{
+                    fontFamily: FONTS.note.family, fontSize: 14, lineHeight: 1.9,
+                    color: "var(--ds-text)", whiteSpace: "pre-wrap",
+                  }}>
+                    {text}
+                  </p>
+                </div>
               </div>
 
               {/* Close */}
