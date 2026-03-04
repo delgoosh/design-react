@@ -1,16 +1,27 @@
 // ─────────────────────────────────────────────────────────────
 // STEP 4a — Patient: suggested therapists + timezone
+// Shows crisis interstitial when patient flagged crisis concern.
 // TODO(backend-integration): therapist suggestions should come
 // from the real matching engine, not mock data.
 // ─────────────────────────────────────────────────────────────
+import { useState } from "react";
 import { useLang, Button, Card, Avatar, Tag, StarRating } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 import { Ic } from "@ds";
 import { MOCK_THERAPISTS } from "./mockData.js";
+import { CrisisResources } from "./CrisisResources.jsx";
 
-export const StepPatientMatch = ({ onBookSession, onComplete, onBack }) => {
+export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack }) => {
   const { lang, t } = useLang();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  // Crisis gate — show resources first if patient flagged crisis
+  const hasCrisis = answers?.crisisFlag === "yes";
+  const [crisisAcknowledged, setCrisisAcknowledged] = useState(false);
+
+  if (hasCrisis && !crisisAcknowledged) {
+    return <CrisisResources onContinue={() => setCrisisAcknowledged(true)} />;
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -22,11 +33,26 @@ export const StepPatientMatch = ({ onBookSession, onComplete, onBack }) => {
       </div>
 
       {/* Timezone tag */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
         <Tag color="neutral" style={{ gap: 5 }}>
           <Ic n="globe" s={13} c={COLORS.textMid} />
           {t("onboarding.timezone")}: {tz}
         </Tag>
+      </div>
+
+      {/* Crisis resources link (for testing — always visible) */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <button
+          onClick={() => setCrisisAcknowledged(false)}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 12, color: COLORS.danger, fontWeight: 600,
+            textDecoration: "underline", fontFamily: "inherit",
+            display: "flex", alignItems: "center", gap: 4,
+          }}
+        >
+          <Ic n="alert" s={12} c={COLORS.danger} /> {t("crisis.crisisLink")}
+        </button>
       </div>
 
       {/* Therapist cards */}
@@ -45,10 +71,13 @@ export const StepPatientMatch = ({ onBookSession, onComplete, onBack }) => {
             <Tag color="primary" style={{ fontWeight: 700 }}>{th.matchPercent}% {t("onboarding.matchPercent")}</Tag>
           </div>
 
-          {/* Specialties */}
+          {/* Specialties + style tags */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {th.specialties.map((sp, i) => (
               <Tag key={i} color="accent" style={{ fontSize: 10 }}>{localised(sp, lang)}</Tag>
+            ))}
+            {th.styleTags?.map((st, i) => (
+              <Tag key={`s${i}`} color="neutral" style={{ fontSize: 10 }}>{localised(st, lang)}</Tag>
             ))}
           </div>
 

@@ -81,7 +81,7 @@ export const OnboardingShell = ({ role, email, initialStep = 0, onComplete }) =>
       case 2: return <StepAiChat role={role} onNext={goNext} onBack={goBack} />;
       case 3:
         return isPatient
-          ? <StepPatientMatch onBookSession={handleBookSession} onComplete={onComplete} onBack={goBack} />
+          ? <StepPatientMatch answers={answers} onBookSession={handleBookSession} onComplete={onComplete} onBack={goBack} />
           : <StepTherapistSchedule onComplete={onComplete} onBack={goBack} />;
       case 4:
         return isPatient
