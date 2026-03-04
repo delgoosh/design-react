@@ -4,16 +4,21 @@
 // TODO(backend-integration): therapist suggestions should come
 // from the real matching engine, not mock data.
 // ─────────────────────────────────────────────────────────────
-import { useState } from "react";
-import { useLang, Button, Card, Avatar, Tag, StarRating } from "@ds";
+import { useState, useMemo } from "react";
+import { useLang, Button, Card, Avatar, Tag, StarRating, Select } from "@ds";
 import { COLORS, RADIUS } from "@ds";
 import { Ic } from "@ds";
 import { MOCK_THERAPISTS } from "./mockData.js";
 import { CrisisResources } from "./CrisisResources.jsx";
+import { getAllTimezones } from "@shared/utils/availability.js";
 
 export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack }) => {
   const { lang, t } = useLang();
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [tz, setTz] = useState(() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "UTC"; }
+  });
+  const [showTzSelect, setShowTzSelect] = useState(false);
+  const tzOptions = useMemo(() => getAllTimezones().map((z) => ({ value: z, label: z })), []);
 
   // Crisis gate — show resources first if patient flagged crisis
   const hasCrisis = answers?.crisisFlag === "yes";
@@ -32,12 +37,35 @@ export const StepPatientMatch = ({ answers, onBookSession, onComplete, onBack })
         <p style={{ fontSize: 13, color: "var(--ds-text-mid)" }}>{t("onboarding.matchSub")}</p>
       </div>
 
-      {/* Timezone tag */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-        <Tag color="neutral" style={{ gap: 5 }}>
-          <Ic n="globe" s={13} c="var(--ds-text-mid)" />
-          {t("onboarding.timezone")}: {tz}
-        </Tag>
+      {/* Timezone — editable */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        {showTzSelect ? (
+          <div style={{ width: "100%", maxWidth: 340 }}>
+            <Select
+              options={tzOptions}
+              value={tz}
+              onChange={(v) => { setTz(v); setShowTzSelect(false); }}
+              placeholder={t("onboarding.timezoneSelect")}
+            />
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Tag color="neutral" style={{ gap: 5 }}>
+              <Ic n="globe" s={13} c="var(--ds-text-mid)" />
+              {t("onboarding.timezone")}: {tz}
+            </Tag>
+            <button
+              onClick={() => setShowTzSelect(true)}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 12, color: COLORS.primary, fontWeight: 600,
+                fontFamily: "inherit", textDecoration: "underline",
+              }}
+            >
+              {t("onboarding.timezoneChange")}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Crisis resources link (for testing — always visible) */}

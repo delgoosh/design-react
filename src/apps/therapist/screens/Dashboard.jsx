@@ -10,6 +10,7 @@
 import { useState, useRef } from "react";
 import { useLang, useIsDesktop, Card, Tag, Button, Avatar, Ic, StatCard, SessionCard } from "@ds";
 import { COLORS, RADIUS } from "@ds";
+import { convertTimeBetweenOffsets } from "@shared/utils/availability.js";
 
 // ── Mock data ─────────────────────────────────────────────────
 // TODO(backend-integration): replace with real API data
@@ -34,6 +35,8 @@ const MOCK = {
     date:           { en: "Tue, Feb 27", fa: "سه‌شنبه ۸ اسفند" },
     time:           { en: "10:00 AM",    fa: "۱۰:۰۰ صبح" },
     hoursUntil:     2,
+    therapistUtcOffset: "+03:30",   // Asia/Tehran
+    patientUtcOffset:   "-05:00",   // America/New_York
   },
   // Recent sessions needing therapist notes — with transcript/AI summary availability
   pendingNotes: [
@@ -205,6 +208,14 @@ export const Dashboard = ({ setTab }) => {
             date={loc(MOCK.nextSession.date, lang)}
             time={loc(MOCK.nextSession.time, lang)}
             hoursUntil={MOCK.nextSession.hoursUntil}
+            counterpartHint={(() => {
+              const pt = convertTimeBetweenOffsets(
+                MOCK.nextSession.time.en,
+                MOCK.nextSession.therapistUtcOffset,
+                MOCK.nextSession.patientUtcOffset
+              );
+              return `${pt} ${t("dashboard.theirTime")} ${loc(MOCK.nextSession.patientName, lang)}`;
+            })()}
             onJoin={() => {}}
             onCancel={() => {}}
           />
