@@ -280,7 +280,7 @@ function ChatBubble({ role, text, isRtl }) {
         maxWidth: "75%", padding: "10px 14px",
         borderRadius: isAi ? "14px 14px 14px 4px" : "14px 14px 4px 14px",
         background: isAi ? "var(--ds-cream)" : COLORS.primaryGhost,
-        color: "var(--ds-text)", fontSize: 13, lineHeight: 1.55,
+        color: "var(--ds-text)", fontSize: 16, lineHeight: 1.55,
       }}>
         {text}
       </div>
@@ -415,7 +415,7 @@ function ChatHistoryPanel({
               onClick={() => { onSwitch?.(s.id); onClose(); }}
             >
               <p style={{
-                fontSize: 13, fontWeight: 600, color: "var(--ds-text)",
+                fontSize: 16, fontWeight: 600, color: "var(--ds-text)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {s.title || t("chat.title")}
