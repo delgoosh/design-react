@@ -78,14 +78,14 @@ export const AiChat = ({
     initRef.current = true;
     // If resuming a chat that already has messages, skip greeting
     if (activeSession?.messages?.length > 0) {
-      inputRef.current?.focus();
+      if (isD) inputRef.current?.focus();
       return;
     }
     setTyping(true);
     setTimeout(() => {
       setMessages([{ role: "ai", text: t(welcomeKey) }]);
       setTyping(false);
-      inputRef.current?.focus();
+      if (isD) inputRef.current?.focus();
     }, TYPING_DELAY);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -137,7 +137,7 @@ export const AiChat = ({
       }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
-      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0 }}>
+      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0, position: "sticky", top: 0, zIndex: 10, background: "var(--ds-bg)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: "50%",
@@ -178,6 +178,7 @@ export const AiChat = ({
         style={{
           flex: 1, overflowY: "auto", padding: `0 ${pad}px`,
           display: "flex", flexDirection: "column", gap: 12,
+          justifyContent: "flex-end",
           minHeight: 0, // needed for flex overflow
         }}
       >
@@ -225,7 +226,7 @@ export const AiChat = ({
           placeholder={t("chat.inputPh")}
           disabled={typing || creditEmpty}
           style={{
-            flex: 1, padding: "10px 14px", fontSize: 13,
+            flex: 1, padding: "10px 14px", fontSize: 16,
             borderRadius: RADIUS.md, border: "1.5px solid var(--ds-sand)",
             background: "var(--ds-card-bg)", color: "var(--ds-text)",
             fontFamily: "inherit", direction: dir, outline: "none",
@@ -280,7 +281,7 @@ function ChatBubble({ role, text, isRtl }) {
         maxWidth: "75%", padding: "10px 14px",
         borderRadius: isAi ? "14px 14px 14px 4px" : "14px 14px 4px 14px",
         background: isAi ? "var(--ds-cream)" : COLORS.primaryGhost,
-        color: "var(--ds-text)", fontSize: 13, lineHeight: 1.55,
+        color: "var(--ds-text)", fontSize: 16, lineHeight: 1.55,
       }}>
         {text}
       </div>
@@ -415,7 +416,7 @@ function ChatHistoryPanel({
               onClick={() => { onSwitch?.(s.id); onClose(); }}
             >
               <p style={{
-                fontSize: 13, fontWeight: 600, color: "var(--ds-text)",
+                fontSize: 16, fontWeight: 600, color: "var(--ds-text)",
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {s.title || t("chat.title")}
