@@ -137,7 +137,7 @@ export const AiChat = ({
       }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
-      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0 }}>
+      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0, position: "sticky", top: 0, zIndex: 10, background: "var(--ds-bg)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: "50%",
