@@ -327,19 +327,21 @@ export const PatientApp = ({ skipAuth }) => {
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "var(--ds-bg)", position: "relative" }}>
-          <Screen
-            key={tab === "chat" ? `chat-${activeChatId || "empty"}` : tab}
-            navigate={navigate}
-            chatContext={tab === "chat" ? chatContext : undefined}
-            chatCredit={chatCredit}
-            setChatCredit={setChatCredit}
-            {...chatProps}
-            {...therapistProps}
-            {...assignmentProps}
-            {...creditProps}
-          />
-          <nav className="ds-bottom-nav">
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
+            <Screen
+              key={tab === "chat" ? `chat-${activeChatId || "empty"}` : tab}
+              navigate={navigate}
+              chatContext={tab === "chat" ? chatContext : undefined}
+              chatCredit={chatCredit}
+              setChatCredit={setChatCredit}
+              {...chatProps}
+              {...therapistProps}
+              {...assignmentProps}
+              {...creditProps}
+            />
+          </div>
+          <nav className="ds-bottom-nav" style={{ position: "static", flexShrink: 0, width: "100%" }}>
             {mobileNavItems.map((item) => (
               <BottomNavItem
                 key={item.id}
