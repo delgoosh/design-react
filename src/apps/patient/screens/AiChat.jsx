@@ -130,11 +130,10 @@ export const AiChat = ({
         direction: dir,
         display: "flex",
         flexDirection: "column",
+        height: "100%",
         overflow: "hidden",
-        ...(isD
-          ? { height: "100%", maxWidth: 860, margin: "0 auto" }
-          : { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto" }
-        ),
+        maxWidth: isD ? 860 : undefined,
+        margin: isD ? "0 auto" : undefined,
       }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
@@ -211,7 +210,7 @@ export const AiChat = ({
       {/* ── Input bar (sticky bottom) ───────────────────────── */}
       <div style={{
         padding: `12px ${pad}px`,
-        paddingBottom: isD ? 12 : 80, // account for bottom nav on mobile
+        paddingBottom: 12,
         borderTop: "1px solid var(--ds-card-border)",
         background: "var(--ds-bg)",
         flexShrink: 0,

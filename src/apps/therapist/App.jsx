@@ -156,9 +156,11 @@ export const TherapistApp = ({ skipAuth }) => {
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: "var(--ds-bg)", position: "relative" }}>
-          <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} bookedBlockInfo={MOCK_BLOCK_DATA.info} />
-          <nav className="ds-bottom-nav">
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
+            <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} bookedBlockInfo={MOCK_BLOCK_DATA.info} />
+          </div>
+          <nav className="ds-bottom-nav" style={{ position: "static", flexShrink: 0, width: "100%" }}>
             {mobileNavItems.map((item) => (
               <BottomNavItem
                 key={item.id}
