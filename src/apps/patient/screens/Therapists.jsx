@@ -230,6 +230,7 @@ export const Therapists = ({
         direction: dir, padding: pad, paddingBottom: 100,
         maxWidth: isD ? 680 : undefined,
         margin: isD ? "0 auto" : undefined,
+        overflowX: "hidden",
       }}>
         {/* Header with cancel */}
         <div style={{

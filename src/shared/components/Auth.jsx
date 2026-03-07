@@ -24,13 +24,18 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── OTP Input — 6 boxes with auto-advance ────────────────────────────────────
-function OtpInput({ value, onChange, dark }) {
+function OtpInput({ value, onChange, onSubmit, dark }) {
   const refs = Array.from({ length: 6 }, () => useRef(null))
 
   // Auto-focus first input on mount
   useEffect(() => { refs[0].current?.focus() }, [])
 
   const handleKey = (i, e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onSubmit?.()
+      return
+    }
     if (e.key === 'Backspace') {
       if (!value[i] && i > 0) {
         refs[i - 1].current?.focus()
@@ -400,7 +405,7 @@ export default function Auth({ mode = 'patient', onLogin }) {
 
             {/* OTP boxes */}
             <div style={{ marginBottom: 20 }}>
-              <OtpInput value={otp} onChange={setOtp} dark={isDark} />
+              <OtpInput value={otp} onChange={setOtp} onSubmit={handleVerify} dark={isDark} />
             </div>
 
             <Button
