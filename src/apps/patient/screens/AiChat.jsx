@@ -225,7 +225,7 @@ export const AiChat = ({
           placeholder={t("chat.inputPh")}
           disabled={typing || creditEmpty}
           style={{
-            flex: 1, padding: "10px 14px", fontSize: 13,
+            flex: 1, padding: "10px 14px", fontSize: 16,
             borderRadius: RADIUS.md, border: "1.5px solid var(--ds-sand)",
             background: "var(--ds-card-bg)", color: "var(--ds-text)",
             fontFamily: "inherit", direction: dir, outline: "none",
