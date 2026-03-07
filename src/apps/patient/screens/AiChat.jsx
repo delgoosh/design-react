@@ -178,6 +178,7 @@ export const AiChat = ({
         style={{
           flex: 1, overflowY: "auto", padding: `0 ${pad}px`,
           display: "flex", flexDirection: "column", gap: 12,
+          justifyContent: "flex-end",
           minHeight: 0, // needed for flex overflow
         }}
       >
