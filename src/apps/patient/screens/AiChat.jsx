@@ -130,14 +130,15 @@ export const AiChat = ({
         direction: dir,
         display: "flex",
         flexDirection: "column",
-        height: isD ? "100%" : "100dvh",
-        maxWidth: isD ? 860 : 480,
-        margin: "0 auto",
         overflow: "hidden",
+        ...(isD
+          ? { height: "100%", maxWidth: 860, margin: "0 auto" }
+          : { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto" }
+        ),
       }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
-      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0, position: "sticky", top: 0, zIndex: 10, background: "var(--ds-bg)" }}>
+      <div style={{ padding: `${pad}px ${pad}px 12px`, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: "50%",
