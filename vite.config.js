@@ -4,6 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  base: "/design-react/",
   server: { host: "127.0.0.1" },
   build: { target: "esnext" },
   resolve: {

@@ -297,17 +297,18 @@ function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, 
   const atEnd   = weekOffset >= BOOKING_HORIZON_WEEKS - 1;
   return (
     <>
-      {/* Week navigator */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      {/* Week navigator — forced LTR layout; in RTL left=forward, right=backward */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, direction: "ltr" }}>
         <div style={{ display: "flex", gap: 2 }}>
-          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 4))} disabled={atStart}>
-            {dir === "rtl" ? "»" : "«"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 1))} disabled={atStart}>
-            {dir === "rtl" ? "→" : "←"}
-          </Button>
+          {dir === "rtl" ? (<>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 4))} disabled={atEnd}>»</Button>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 1))} disabled={atEnd}>›</Button>
+          </>) : (<>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 4))} disabled={atStart}>«</Button>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 1))} disabled={atStart}>‹</Button>
+          </>)}
         </div>
-        <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: "center", direction: dir }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ds-text)" }}>
             {t("calendar.weekOf")} {formatWeekLabel(weekStart, lang)}
           </p>
@@ -316,12 +317,13 @@ function WeekView({ weekByDay, weekStart, weekOffset, setWeekOffset, openCount, 
           </p>
         </div>
         <div style={{ display: "flex", gap: 2 }}>
-          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 1))} disabled={atEnd}>
-            {dir === "rtl" ? "←" : "→"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 4))} disabled={atEnd}>
-            {dir === "rtl" ? "«" : "»"}
-          </Button>
+          {dir === "rtl" ? (<>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 1))} disabled={atStart}>‹</Button>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.max(0, w - 4))} disabled={atStart}>«</Button>
+          </>) : (<>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 1))} disabled={atEnd}>›</Button>
+            <Button variant="ghost" size="sm" onClick={() => setWeekOffset((w) => Math.min(BOOKING_HORIZON_WEEKS - 1, w + 4))} disabled={atEnd}>»</Button>
+          </>)}
         </div>
       </div>
 

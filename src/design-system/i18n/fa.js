@@ -485,10 +485,10 @@ export default {
     blocksCount:      "بلوک",
     noBlocksThisWeek: "بلوکی در این هفته نیست",
     open:             "آزاد",
-    offBlock:         "مرخصی",
+    offBlock:         "تعطیل",
     // Take-off feature
-    takeOffWeek:      "مرخصی این هفته",
-    takeOffDay:       "مرخصی",
+    takeOffWeek:      "تعطیل کردن این هفته",
+    takeOffDay:       "تعطیل کردن",
     cancelBlock:      "لغو این بلوک",
     markUnavailable:  "غیرفعال کردن",
     blockWillBeUnavailable: "این بلوک برای رزرو غیرفعال خواهد شد.",
