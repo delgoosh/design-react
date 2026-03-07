@@ -130,9 +130,10 @@ export const AiChat = ({
         direction: dir,
         display: "flex",
         flexDirection: "column",
-        height: isD ? "100%" : "100vh",
+        height: isD ? "100%" : "100dvh",
         maxWidth: isD ? 860 : 480,
         margin: "0 auto",
+        overflow: "hidden",
       }}
     >
       {/* ── Header ──────────────────────────────────────────── */}
