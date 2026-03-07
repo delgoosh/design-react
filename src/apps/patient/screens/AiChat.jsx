@@ -78,14 +78,14 @@ export const AiChat = ({
     initRef.current = true;
     // If resuming a chat that already has messages, skip greeting
     if (activeSession?.messages?.length > 0) {
-      inputRef.current?.focus();
+      if (isD) inputRef.current?.focus();
       return;
     }
     setTyping(true);
     setTimeout(() => {
       setMessages([{ role: "ai", text: t(welcomeKey) }]);
       setTyping(false);
-      inputRef.current?.focus();
+      if (isD) inputRef.current?.focus();
     }, TYPING_DELAY);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
