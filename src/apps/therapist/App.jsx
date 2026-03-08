@@ -3,7 +3,7 @@
 // Renders the correct screen based on `tab` state.
 // Desktop: sidebar nav | Mobile: bottom nav (5 tabs max)
 // ─────────────────────────────────────────────────────────────
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 import { MOCK_THERAPIST_AVAILABILITY, MOCK_THERAPISTS } from "@shared/components/onboarding/mockData.js";
@@ -98,22 +98,33 @@ export const TherapistApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
 
+  const [authed, setAuthed] = useState(skipAuth || false);
+  const [tab,    setTab]    = useState("home");
+
   // ── iOS Safari keyboard fix ──────────────────────────────
+  // When the virtual keyboard opens, iOS scrolls the layout viewport up
+  // which pushes position:fixed elements off-screen. We resize and
+  // reposition the mobile shell to match the actual visible area.
+  const shellRef = useRef(null);
   useEffect(() => {
     if (isD) return;
     const vv = window.visualViewport;
     if (!vv) return;
-    const onResize = () => window.scrollTo(0, 0);
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+    const update = () => {
+      const el = shellRef.current;
+      if (!el) return;
+      el.style.height = `${vv.height}px`;
+      el.style.transform = `translateY(${vv.offsetTop}px)`;
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      const el = shellRef.current;
+      if (el) { el.style.height = ""; el.style.transform = ""; }
     };
   }, [isD]);
-
-  const [authed, setAuthed] = useState(skipAuth || false);
-  const [tab,    setTab]    = useState("home");
 
   // ── Availability state (CREDIT-201/202) ──────────────────
   const [availability, setAvailability] = useState(MOCK_THERAPIST_AVAILABILITY["t1"]);
@@ -171,7 +182,7 @@ export const TherapistApp = ({ skipAuth }) => {
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
+        <div ref={shellRef} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
             <Screen setTab={setTab} availability={availability} setAvailability={setAvailability} bookedBlocks={bookedBlocks} setBookedBlocks={setBookedBlocks} heldBlocks={heldBlocks} setHeldBlocks={setHeldBlocks} bookedBlockInfo={MOCK_BLOCK_DATA.info} />
           </div>

@@ -3,7 +3,7 @@
 // Renders the correct screen based on `tab` state.
 // Desktop: sidebar nav | Mobile: bottom nav
 // ─────────────────────────────────────────────────────────────
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 import { MOCK_THERAPISTS, MOCK_NEXT_SESSION, MOCK_ASSIGNMENTS, MOCK_TRANSACTIONS } from "@shared/components/onboarding/mockData.js";
@@ -59,27 +59,35 @@ const loadActiveId = () => {
 export const PatientApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
-
-  // ── iOS Safari keyboard fix ──────────────────────────────
-  // When the virtual keyboard opens, iOS scrolls the viewport up
-  // hiding fixed headers. Counteract by scrolling back to 0,0.
-  useEffect(() => {
-    if (isD) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const onResize = () => window.scrollTo(0, 0);
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
-    return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
-    };
-  }, [isD]);
-
   const [authed, setAuthed] = useState(skipAuth || false);
   const [tab, setTab] = useState("home");
   const [chatContext, setChatContext] = useState(null);
   const [chatCredit, setChatCredit] = useState(20);   // lifted so Chat + Credits share it
+
+  // ── iOS Safari keyboard fix ──────────────────────────────
+  // When the virtual keyboard opens, iOS scrolls the layout viewport up
+  // which pushes position:fixed elements off-screen. We resize and
+  // reposition the mobile shell to match the actual visible area.
+  const shellRef = useRef(null);
+  useEffect(() => {
+    if (isD) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const el = shellRef.current;
+      if (!el) return;
+      el.style.height = `${vv.height}px`;
+      el.style.transform = `translateY(${vv.offsetTop}px)`;
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      const el = shellRef.current;
+      if (el) { el.style.height = ""; el.style.transform = ""; }
+    };
+  }, [isD]);
 
   // ── Credit state (lifted so Therapists + Credits share it) ──
   const [sessionCredits, setSessionCredits] = useState(3);
@@ -344,7 +352,7 @@ export const PatientApp = ({ skipAuth }) => {
         </div>
       ) : (
         // ── Mobile layout ───────────────────────────────────
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
+        <div ref={shellRef} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", background: "var(--ds-bg)", overflow: "hidden" }}>
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
             <Screen
               key={tab === "chat" ? `chat-${activeChatId || "empty"}` : tab}
