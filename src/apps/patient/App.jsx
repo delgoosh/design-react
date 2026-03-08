@@ -59,6 +59,23 @@ const loadActiveId = () => {
 export const PatientApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
+
+  // ── iOS Safari keyboard fix ──────────────────────────────
+  // When the virtual keyboard opens, iOS scrolls the viewport up
+  // hiding fixed headers. Counteract by scrolling back to 0,0.
+  useEffect(() => {
+    if (isD) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => window.scrollTo(0, 0);
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, [isD]);
+
   const [authed, setAuthed] = useState(skipAuth || false);
   const [tab, setTab] = useState("home");
   const [chatContext, setChatContext] = useState(null);
