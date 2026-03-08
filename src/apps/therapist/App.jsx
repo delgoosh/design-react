@@ -3,7 +3,7 @@
 // Renders the correct screen based on `tab` state.
 // Desktop: sidebar nav | Mobile: bottom nav (5 tabs max)
 // ─────────────────────────────────────────────────────────────
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLang, useIsDesktop, makeGlobalCSS, Logo, SidebarNavItem, BottomNavItem } from "@ds";
 import { COLORS } from "@ds";
 import { MOCK_THERAPIST_AVAILABILITY, MOCK_THERAPISTS } from "@shared/components/onboarding/mockData.js";
@@ -97,6 +97,21 @@ const SCREENS = {
 export const TherapistApp = ({ skipAuth }) => {
   const { lang, dir, t } = useLang();
   const isD  = useIsDesktop();
+
+  // ── iOS Safari keyboard fix ──────────────────────────────
+  useEffect(() => {
+    if (isD) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => window.scrollTo(0, 0);
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
+  }, [isD]);
+
   const [authed, setAuthed] = useState(skipAuth || false);
   const [tab,    setTab]    = useState("home");
 
