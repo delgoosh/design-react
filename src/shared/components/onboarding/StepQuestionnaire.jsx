@@ -402,7 +402,7 @@ export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack })
                 padding: "12px 14px",
                 border: `2px solid ${(answers[q.id] || []).includes(opt.value) ? "var(--ds-primary, #4a9d8e)" : "var(--ds-border, #d4e5e1)"}`,
                 borderRadius: RADIUS.md ?? 12,
-                background: (answers[q.id] || []).includes(opt.value) ? "var(--ds-primary-ghost, #edf7f5)" : "#fff",
+                background: (answers[q.id] || []).includes(opt.value) ? "var(--ds-primary-ghost, #edf7f5)" : "var(--ds-card-bg, #fff)",
                 cursor: "pointer", transition: "border-color 0.15s, background 0.15s",
               }}
             >
@@ -433,7 +433,7 @@ export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack })
                   padding: "14px 16px", textAlign: "start",
                   border: `2px solid ${selected ? "var(--ds-primary, #4a9d8e)" : "var(--ds-border, #d4e5e1)"}`,
                   borderRadius: RADIUS.md ?? 12,
-                  background: selected ? "var(--ds-primary-ghost, #edf7f5)" : "#fff",
+                  background: selected ? "var(--ds-primary-ghost, #edf7f5)" : "var(--ds-card-bg, #fff)",
                   cursor: "pointer", transition: "border-color 0.15s, background 0.15s",
                   fontFamily: "inherit",
                 }}
@@ -442,7 +442,7 @@ export const StepQuestionnaire = ({ role, answers, setAnswers, onNext, onBack })
                 <span style={{
                   width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
                   border: `2px solid ${selected ? "var(--ds-primary, #4a9d8e)" : "var(--ds-border, #d4e5e1)"}`,
-                  background: selected ? "var(--ds-primary, #4a9d8e)" : "#fff",
+                  background: selected ? "var(--ds-primary, #4a9d8e)" : "var(--ds-card-bg, #fff)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "background 0.15s, border-color 0.15s",
                 }}>

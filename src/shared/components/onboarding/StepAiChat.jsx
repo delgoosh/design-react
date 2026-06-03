@@ -108,7 +108,7 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
         </div>
 
         <div style={{
-          background: "#fff", border: "1.5px solid var(--ds-border, #d4e5e1)",
+          background: "var(--ds-card-bg, #fff)", border: "1.5px solid var(--ds-border, #d4e5e1)",
           borderRadius: 12, padding: "14px 18px", fontSize: 13,
           color: "var(--ds-text-mid)", lineHeight: 1.6, direction: dir,
         }}>
