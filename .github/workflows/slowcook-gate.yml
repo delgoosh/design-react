@@ -1,0 +1,51 @@
+name: slowcook HITL gate
+
+# design #9 — the human-review halt. On every PR review submission (and on
+# demand) re-evaluate the stage gate: a stage may only advance once a HUMAN in
+# the required role (.brewing/reviewers.yaml) has approved. A bot/agent review
+# never satisfies the gate. Stage is derived from the slowcook branch prefix.
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Resolve stage from branch
+        id: stage
+        env:
+          HEAD: ${{ github.event.pull_request.head.ref || github.head_ref }}
+        run: |
+          case "${HEAD}" in
+            slowcook/brew/*)   echo "stage=brew"   >> "$GITHUB_OUTPUT" ;;
+            slowcook/plate/*)  echo "stage=plate"  >> "$GITHUB_OUTPUT" ;;
+            slowcook/vibe/*)   echo "stage=plate"  >> "$GITHUB_OUTPUT" ;;
+            slowcook/refine/*) echo "stage=refine" >> "$GITHUB_OUTPUT" ;;
+            *)                 echo "stage=" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Evaluate gate
+        if: steps.stage.outputs.stage != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          npx --yes @slowcook-ai/cli@0.21.1 gate check \
+            --stage "${{ steps.stage.outputs.stage }}" --pr "${PR}" --repo "${REPO}"

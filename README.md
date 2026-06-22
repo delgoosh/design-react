@@ -1,5 +1,7 @@
 # دلگوش — Delgoosh
 
+> **AI agents working in this repo:** read [`AGENTS.md`](./AGENTS.md) first.
+
 Persian-language mental health platform for Persian-speaking refugees and immigrants.
 
 ## Project structure

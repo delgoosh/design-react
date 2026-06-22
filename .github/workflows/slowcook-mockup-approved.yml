@@ -1,0 +1,37 @@
+name: slowcook — mockup approved
+
+# Posts a cost-rollup audit comment on the source issue when a
+# mockup PR gets the slowcook-mockup-approved label. Approval is
+# "design contract signed off"; brew runs after the PR merges.
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  comment:
+    if: >-
+      github.event.label.name == 'slowcook-mockup-approved' &&
+      contains(github.event.pull_request.labels.*.name, 'slowcook-mockup')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Post cost-rollup on source issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes "$SLOWCOOK_CLI" on-mockup-approved --pr ${{ github.event.pull_request.number }}

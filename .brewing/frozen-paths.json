@@ -1,0 +1,29 @@
+{
+  "$schema": "./frozen-paths.schema.json",
+  "$doc": "Paths frozen by slowcook. See https://github.com/aminazar/slowcook for the design. To modify any of these: either get CODEOWNERS approval, or add the 'override-freeze' label to the PR (guard runs in advisory mode, audit trail preserved).",
+  "directories": [
+    "tests/",
+    "tests-fixtures/",
+    "tests-helpers/",
+    ".brewing/manifests/"
+  ],
+  "files": [
+    "vitest.config.ts",
+    "vitest.config.mjs",
+    "vitest.config.js",
+    ".brewing/frozen-paths.json",
+    ".brewing/stack.json",
+    ".brewing/context.md",
+    ".github/workflows/slowcook.yml",
+    ".github/workflows/slowcook-spec-merged.yml",
+    ".github/workflows/slowcook-testgen.yml"
+  ],
+  "partial": {
+    "package.json": {
+      "frozen_key_paths": [
+        "scripts.test",
+        "scripts.test:watch"
+      ]
+    }
+  }
+}

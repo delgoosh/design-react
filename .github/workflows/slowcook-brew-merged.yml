@@ -1,0 +1,39 @@
+name: slowcook — brew merged
+
+# Posts the final "shipped" audit-trail comment on each story's source
+# issue when the brew PR merges. Completes the pipeline trail:
+# refine → spec-merged → testgen → tests-merged → brew → HERE.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  comment:
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'slowcook-brew')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Post audit-trail comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes "$SLOWCOOK_CLI" on-brew-merged --pr ${{ github.event.pull_request.number }}

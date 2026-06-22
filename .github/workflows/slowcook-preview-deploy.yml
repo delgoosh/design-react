@@ -1,0 +1,84 @@
+name: slowcook preview deploy
+
+# 0.16.0-alpha.5 — SSH preview deploy for the mock app. Fires when a
+# slowcook-mockup PR is opened, edited, synchronized, or labeled. The
+# consumer must:
+#   1. Create .brewing/preview.yaml with type: ssh + host/user/key_secret
+#      /port_range/url_template/remote_root.  See docs/operating-guide.md.
+#   2. Set the SLOWCOOK_PREVIEW_SSH_KEY repo secret to the deploy user's
+#      private SSH key (matched by an entry in
+#      ~deploy-user/.ssh/authorized_keys on the box).
+#   3. Run a reverse proxy on the box that maps the URL pattern in
+#      url_template to the docker host port (e.g., Caddy with a wildcard
+#      subdomain matcher).
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to deploy (manual override)"
+        required: true
+        type: string
+
+concurrency:
+  group: slowcook-preview-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'slowcook-mockup')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Stage SSH private key
+        id: ssh-stage
+        env:
+          SLOWCOOK_PREVIEW_SSH_KEY: ${{ secrets.SLOWCOOK_PREVIEW_SSH_KEY }}
+        run: |
+          set -eu
+          if [ -z "${SLOWCOOK_PREVIEW_SSH_KEY:-}" ]; then
+            # 0.16.0-α.25 — silently skip when no SSH key is configured.
+            # Many consumers run `slowcook run-mock` locally instead of
+            # SSH-deploying to their own box; failing the PR check on
+            # a missing secret is hostile UX. Warn visibly so consumers
+            # who DID intend to set it up notice the gap.
+            echo "::notice::SLOWCOOK_PREVIEW_SSH_KEY secret not set; skipping SSH preview deploy. Configure per docs/operating-guide.md if you want preview URLs on this PR."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SLOWCOOK_PREVIEW_SSH_KEY" > ~/.ssh/id_slowcook_preview
+          chmod 600 ~/.ssh/id_slowcook_preview
+          echo "SLOWCOOK_PREVIEW_SSH_KEY_PATH=$HOME/.ssh/id_slowcook_preview" >> $GITHUB_ENV
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy preview
+        if: steps.ssh-stage.outputs.skip != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+        run: |
+          set -eu
+          npx --yes "$SLOWCOOK_CLI" preview deploy --pr "$PR_NUMBER"
