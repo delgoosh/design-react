@@ -89,29 +89,37 @@ export const PatientApp = ({ skipAuth }) => {
     };
   }, [isD]);
 
-  // ── Credit state (lifted so Therapists + Credits share it) ──
+  // ── Wallet state (NEW real-money model) ─────────────────────
+  // One shared wallet of real money in £. The Credits/Wallet screen owns
+  // care-profiles + auto-booking locally; App holds the uncommitted balance.
+  const [walletBalance, setWalletBalance] = useState(42);
+
+  // ── Back-compat session-credit state ────────────────────────
+  // Therapists.jsx (booking sheet) still reads sessionCredits/autoRenew to
+  // gate the calendar. Kept as harmless stubs until that screen migrates to
+  // the wallet model; the Wallet SCREEN no longer uses them.
   const [sessionCredits, setSessionCredits] = useState(3);
-  const [autoRenew, setAutoRenew] = useState(true);     // auto-renew ON by default
+  const [autoRenew, setAutoRenew] = useState(true);
 
   // ── Transaction ledger ──────────────────────────────────
   const [transactions, setTransactions] = useState(MOCK_TRANSACTIONS);
 
   const addTransaction = useCallback((type, creditDelta, extra = {}) => {
     setTransactions((prev) => {
-      const balanceAfter = (prev.length > 0 ? prev[0].balanceAfter : sessionCredits) + creditDelta;
+      const balanceAfter = (prev.length > 0 ? prev[0].balanceAfter : 0) + creditDelta;
       return [{
         id: `tx${Date.now()}`,
         type,
         creditDelta,
         balanceAfter,
         date: new Date().toISOString(),
-        receiptAvailable: type === "purchase" || type === "auto_renew",
+        receiptAvailable: type === "topup" || type === "purchase" || type === "auto_renew" || type === "refund",
         therapistName: null,
         reasonCode: null,
         ...extra,
       }, ...prev];
     });
-  }, [sessionCredits]);
+  }, []);
 
   // ── Therapist state ────────────────────────────────────
   const [chosenTherapist, setChosenTherapist] = useState(MOCK_THERAPISTS[0]);
@@ -290,14 +298,18 @@ export const PatientApp = ({ skipAuth }) => {
     onCompleteAssignment: handleCompleteAssignment,
   };
 
-  // Credit-specific props (shared between Credits + Therapists)
+  // Credit/Wallet-specific props (shared between Credits + Therapists)
   const creditProps = {
+    // NEW wallet model — consumed by the Wallet (Credits) screen
+    walletBalance,
+    setWalletBalance,
+    transactions,
+    addTransaction,
+    // Back-compat — Therapists.jsx booking sheet still reads these
     sessionCredits,
     setSessionCredits,
     autoRenew,
     setAutoRenew,
-    transactions,
-    addTransaction,
   };
 
   // Therapist-specific props

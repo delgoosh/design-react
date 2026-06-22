@@ -1,67 +1,181 @@
 // ─────────────────────────────────────────────────────────────
-// PATIENT / Credits
+// PATIENT / Wallet  (real-money model — replaces the old coupon model)
 // ─────────────────────────────────────────────────────────────
-// Two credit types:
-//   1. Session credits — integer count, used to book therapy sessions
-//   2. Chat credit — percentage gauge (0–110%), fuels AI Chat
-//      - Starts at 20% free
-//      - Convert 1 session credit → +100% chat credit
-//      - Convert disabled when chatCredit > 10% (max 110%)
+// Patients hold ONE shared wallet of real money in £ (GBP).
+// The wallet shows ONLY the UNCOMMITTED REMAINDER — money not yet
+// locked into a booked session. Once money funds a booking it leaves
+// the visible balance and appears in "Upcoming sessions".
 //
-// Auto-renew toggle lives inside the balance card (default ON).
-// When ON → buy buttons become "Subscribe".
-// Voucher code input: test code "VOUCH" adds 1 session credit.
+// Care profiles (drop-down): self / partner / child. Each profile =
+// one therapist + one weekly slot + a per-profile subscription.
+// Subscription = auto-recharge via Stripe + keeps the weekly slot.
+//   • 1 session (no discount)  or  • 8-for-7 bundle (subscriber only).
+//
+// Auto-booking: money added to the wallet is immediately converted into
+// bookings (whole multiples of the active profile's session price); the
+// sub-session leftover stays as the visible remainder.
+//
+// Refunds always land in the wallet first; the only path back to the
+// card is an explicit "wallet → card" pull (Stripe fee deducted).
 // ─────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { useLang, useIsDesktop, Ic } from "@ds";
 import { COLORS, RADIUS } from "@ds";
-import { Card, Button, Tag } from "@ds";
+import { Card, Button, Tag, BottomSheet, Select } from "@ds";
+
+const STRIPE_FEE = 0.5; // mock flat Stripe fee (£) deducted on wallet→card refunds
+
+// Mock care profiles. Each = one therapist + weekly slot + subscription.
+const INITIAL_PROFILES = [
+  {
+    id: "self",
+    name: { en: "Myself", fa: "خودم" },
+    therapist: { en: "Dr. Sara Tehrani", fa: "دکتر سارا تهرانی" },
+    slot: { en: "Mondays 18:00", fa: "دوشنبه‌ها ۱۸:۰۰" },
+    price: 60,             // all-in £ per session (standard tier)
+    premium: false,
+    subscribed: true,
+    rechargeSize: "bundle", // "single" | "bundle"
+  },
+  {
+    id: "partner",
+    name: { en: "Partner (couples)", fa: "همسر (زوج‌درمانی)" },
+    therapist: { en: "Dr. Omid Karimi", fa: "دکتر امید کریمی" },
+    slot: { en: "Wednesdays 20:00", fa: "چهارشنبه‌ها ۲۰:۰۰" },
+    price: 90,             // premium therapist sets own all-in price
+    premium: true,
+    subscribed: false,
+    rechargeSize: "single",
+  },
+  {
+    id: "child",
+    name: { en: "Sara (child)", fa: "سارا (کودک)" },
+    therapist: { en: "Dr. Niloofar Rad", fa: "دکتر نیلوفر راد" },
+    slot: { en: "Saturdays 10:00", fa: "شنبه‌ها ۱۰:۰۰" },
+    price: 55,
+    premium: false,
+    subscribed: true,
+    rechargeSize: "single",
+  },
+];
+
+const INITIAL_UPCOMING = [
+  {
+    id: "up1",
+    profileId: "self",
+    therapist: { en: "Dr. Sara Tehrani", fa: "دکتر سارا تهرانی" },
+    amount: 60,
+    dateISO: new Date(Date.now() + 4 * 24 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: "up2",
+    profileId: "self",
+    therapist: { en: "Dr. Sara Tehrani", fa: "دکتر سارا تهرانی" },
+    amount: 60,
+    dateISO: new Date(Date.now() + 11 * 24 * 3600 * 1000).toISOString(),
+  },
+];
+
+const PRESETS = [20, 80, 160];
 
 export const Credits = ({
-  chatCredit = 20, setChatCredit,
-  sessionCredits = 3, setSessionCredits,
-  autoRenew = true, setAutoRenew,
-  transactions = [], addTransaction,
+  walletBalance = 42,
+  transactions = [],
+  addTransaction,
 }) => {
-  const { t, lang, dir } = useLang();
+  const { t, lang, dir, n } = useLang();
   const isD = useIsDesktop();
 
-  const [voucher, setVoucher] = useState("");
-  const [voucherMsg, setVoucherMsg] = useState(null); // null | { type: "success"|"error", text }
+  // Local GBP formatter — fmtCurrency from useLang is USD-only, so don't use it here.
+  const gbp = (v) => "£" + n(Math.round(v));
 
-  // Convert handler
-  const canConvert = chatCredit <= 10 && sessionCredits > 0;
-  const handleConvert = () => {
-    if (!canConvert) return;
-    setSessionCredits((s) => s - 1);
-    setChatCredit?.((c) => Math.min(c + 100, 110));
-  };
+  // ── Wallet + profile state (local mock) ───────────────────
+  const [balance, setBalance] = useState(walletBalance);
+  const [profiles, setProfiles] = useState(INITIAL_PROFILES);
+  const [activeId, setActiveId] = useState(INITIAL_PROFILES[0].id);
+  const [upcoming, setUpcoming] = useState(INITIAL_UPCOMING);
+  const [topUpResult, setTopUpResult] = useState(null); // { booked, remainder }
 
-  // Voucher handler
-  const handleVoucher = () => {
-    const code = voucher.trim().toUpperCase();
-    if (!code) return;
-    if (code === "VOUCH") {
-      setSessionCredits((s) => s + 1);
-      addTransaction?.("voucher", 1, {
-        description: { en: "Voucher redeemed — VOUCH", fa: "کد تخفیف استفاده شد — VOUCH" },
+  // ── Wallet → card refund sheet ────────────────────────────
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundDone, setRefundDone] = useState(false);
+
+  const active = profiles.find((p) => p.id === activeId) || profiles[0];
+
+  const setActiveField = (field, value) =>
+    setProfiles((prev) => prev.map((p) => (p.id === activeId ? { ...p, [field]: value } : p)));
+
+  // ── Top-up + auto-booking simulation ──────────────────────
+  const handleTopUp = (amount) => {
+    const price = active.price;
+    let pool = balance + amount;
+    const booked = [];
+    const now = Date.now();
+    // Book whole sessions until the remainder drops below one session price.
+    let i = upcoming.filter((u) => u.profileId === active.id).length;
+    while (pool >= price) {
+      pool -= price;
+      i += 1;
+      booked.push({
+        id: `up${now}_${i}`,
+        profileId: active.id,
+        therapist: active.therapist,
+        amount: price,
+        dateISO: new Date(now + i * 7 * 24 * 3600 * 1000).toISOString(),
       });
-      setVoucherMsg({ type: "success", text: t("credits.voucherSuccess") });
-      setVoucher("");
-    } else {
-      setVoucherMsg({ type: "error", text: t("credits.voucherError") });
+    }
+    setBalance(pool);
+    if (booked.length) setUpcoming((prev) => [...prev, ...booked]);
+    setTopUpResult({ booked: booked.length, remainder: pool });
+
+    addTransaction?.("topup", amount, {
+      description: {
+        en: `Top-up ${gbp(amount)}`,
+        fa: `شارژ ${gbp(amount)}`,
+      },
+    });
+    if (booked.length) {
+      addTransaction?.("booking", -booked.length * price, {
+        description: {
+          en: `Auto-booked ${booked.length} session${booked.length > 1 ? "s" : ""}`,
+          fa: `${n(booked.length)} جلسه به‌صورت خودکار رزرو شد`,
+        },
+        therapistName: active.therapist,
+      });
     }
   };
 
-  // Buy handler
-  const handleBuy = (amount) => {
-    setSessionCredits((s) => s + amount);
-    const txType = autoRenew ? "auto_renew" : "purchase";
-    addTransaction?.(txType, amount, {
-      description: amount === 1
-        ? { en: `${autoRenew ? "Subscription" : "Purchased"} — 1 session credit`, fa: `${autoRenew ? "اشتراک" : "خرید"} — ۱ اعتبار جلسه` }
-        : { en: `${autoRenew ? "Subscription" : "Purchased"} — ${amount} session credits`, fa: `${autoRenew ? "اشتراک" : "خرید"} — ${amount} اعتبار جلسه` },
+  // ── Cancel an upcoming (booked) session ───────────────────
+  const handleCancel = (sess) => {
+    const hoursUntil = (new Date(sess.dateISO).getTime() - Date.now()) / 3600000;
+    const refundable = hoursUntil > 24;
+    setUpcoming((prev) => prev.filter((u) => u.id !== sess.id));
+    if (refundable) {
+      setBalance((b) => b + sess.amount);
+      addTransaction?.("patient_cancel_refund", sess.amount, {
+        description: { en: "Cancellation refund (>24h) → wallet", fa: "بازگشت وجه لغو (بیش از ۲۴ ساعت) ← کیف پول" },
+        therapistName: sess.therapist,
+      });
+    } else {
+      addTransaction?.("late_cancel", -sess.amount, {
+        description: { en: "Late cancellation (<24h) — charged", fa: "لغو دیرهنگام (کمتر از ۲۴ ساعت) — کسر شد" },
+        therapistName: sess.therapist,
+      });
+    }
+  };
+
+  // ── Wallet → card refund ──────────────────────────────────
+  const handleWalletRefund = () => {
+    const returned = Math.max(0, balance - STRIPE_FEE);
+    addTransaction?.("refund", -balance, {
+      description: {
+        en: `Wallet → card refund (−${gbp(STRIPE_FEE)} fee)`,
+        fa: `بازگشت کیف پول ← کارت (−${gbp(STRIPE_FEE)} کارمزد)`,
+      },
     });
+    setBalance(0);
+    setShowRefund(false);
+    setRefundDone({ returned });
   };
 
   const pad = isD ? 24 : 12;
@@ -77,120 +191,84 @@ export const Credits = ({
         <p style={{ fontSize: 12, color: "var(--ds-text-mid)" }}>{t("credits.subtitle")}</p>
       </div>
 
-      {/* ── Top row: Session credit + Chat credit ─────────── */}
-      <div style={{
-        display: "flex",
-        flexDirection: isD ? "row" : "column",
-        gap,
-        marginBottom: !autoRenew ? 0 : gap + 4,
-      }}>
-        {/* Session credits — teal gradient card with auto-renew toggle */}
-        <SessionCreditCard
-          credits={sessionCredits}
-          autoRenew={autoRenew}
-          onToggleSub={(v) => setAutoRenew?.(v)}
-          t={t}
-          isD={isD}
-          dir={dir}
-        />
-
-        {/* Chat credit gauge card */}
-        <ChatCreditCard
-          chatCredit={chatCredit}
-          sessionCredits={sessionCredits}
-          canConvert={canConvert}
-          onConvert={handleConvert}
-          t={t}
-          isD={isD}
-          dir={dir}
+      {/* ── Care-profile dropdown ───────────────────────────── */}
+      <div style={{ marginBottom: gap }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ds-text)", marginBottom: 6 }}>
+          {t("credits.careProfile")}
+        </label>
+        <Select
+          options={profiles.map((p) => ({ value: p.id, label: loc(p.name, lang) }))}
+          value={activeId}
+          onChange={(v) => { setActiveId(v); setTopUpResult(null); }}
         />
       </div>
 
-      {/* ── Warning when auto-renew is OFF ────────────────── */}
-      {!autoRenew && (
-        <div style={{
-          background: `${COLORS.accent}14`, borderRadius: RADIUS.md,
-          padding: "10px 12px", marginTop: gap, marginBottom: gap + 4,
-          display: "flex", gap: 10, alignItems: "flex-start",
-        }}>
-          <Ic n="alert-triangle" s={16} c={COLORS.accent} style={{ flexShrink: 0, marginTop: 2 }} />
-          <p style={{ fontSize: 12, color: "var(--ds-text-mid)", lineHeight: 1.55 }}>
-            {t("credits.subscriptionWarning")}
-          </p>
-        </div>
-      )}
+      {/* ── Uncommitted remainder hero card ─────────────────── */}
+      <WalletCard balance={balance} gbp={gbp} t={t} isD={isD} dir={dir} />
 
-      {/* ── Buy / Subscribe credits section ──────────────── */}
-      <div style={{ marginBottom: gap + 4 }}>
-        <h2 className="ds-heading" style={{ fontSize: isD ? 17 : 15, color: "var(--ds-text)", marginBottom: 10 }}>
-          {t("credits.buyCredit")}
-        </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <BuyCard
-            title={t("credits.single")}
-            sub={t("credits.singleSub")}
-            btnLabel={autoRenew ? t("credits.subscribe") : t("credits.buy")}
-            onBuy={() => handleBuy(1)}
-          />
-          <BuyCard
-            title={t("credits.pack4")}
-            badge={t("credits.popularBadge")}
-            badgeColor="accent"
-            btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
-            onBuy={() => handleBuy(4)}
-          />
-          <BuyCard
-            title={t("credits.pack6")}
-            badge={t("credits.bestValueBadge")}
-            badgeColor="success"
-            btnLabel={autoRenew ? t("credits.subscribeBundle") : t("credits.buyBundle")}
-            onBuy={() => handleBuy(6)}
-          />
-        </div>
-      </div>
+      {/* ── Active profile panel ────────────────────────────── */}
+      <ProfilePanel
+        profile={active}
+        gbp={gbp}
+        t={t}
+        lang={lang}
+        dir={dir}
+        isD={isD}
+        onToggleSub={(v) => setActiveField("subscribed", v)}
+        onRechargeSize={(v) => setActiveField("rechargeSize", v)}
+      />
 
-      {/* ── Voucher code ────────────────────────────────────── */}
-      <div style={{ marginBottom: gap + 4 }}>
-        <h2 className="ds-heading" style={{ fontSize: isD ? 17 : 15, color: "var(--ds-text)", marginBottom: 10 }}>
-          {t("credits.voucherTitle")}
+      {/* ── Top up / recharge ───────────────────────────────── */}
+      <div style={{ marginTop: gap + 4, marginBottom: gap + 4 }}>
+        <h2 className="ds-heading" style={{ fontSize: isD ? 17 : 15, color: "var(--ds-text)", marginBottom: 2 }}>
+          {t("credits.topUpTitle")}
         </h2>
+        <p style={{ fontSize: 11, color: "var(--ds-text-mid)", marginBottom: 10, lineHeight: 1.5 }}>
+          {t("credits.autoBookNote")}
+        </p>
         <Card>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="text"
-              value={voucher}
-              onChange={(e) => { setVoucher(e.target.value); setVoucherMsg(null); }}
-              onKeyDown={(e) => e.key === "Enter" && handleVoucher()}
-              placeholder={t("credits.voucherPlaceholder")}
-              style={{
-                flex: 1, padding: "9px 12px", fontSize: 13,
-                borderRadius: RADIUS.sm, border: "1.5px solid var(--ds-sand)",
-                background: "var(--ds-card-bg)", color: "var(--ds-text)",
-                fontFamily: "inherit", direction: dir, outline: "none",
-              }}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleVoucher}
-              style={{ flexShrink: 0 }}
-            >
-              {t("credits.voucherApply")}
-            </Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {PRESETS.map((amt) => (
+              <Button
+                key={amt}
+                variant="primary"
+                size="sm"
+                style={{ flex: 1 }}
+                onClick={() => handleTopUp(amt)}
+              >
+                + {gbp(amt)}
+              </Button>
+            ))}
           </div>
-          {voucherMsg && (
-            <p style={{
-              fontSize: 11, marginTop: 6, fontWeight: 600,
-              color: voucherMsg.type === "success" ? COLORS.primary : COLORS.danger,
+          {topUpResult && (
+            <div style={{
+              marginTop: 10, padding: "8px 12px", borderRadius: RADIUS.sm,
+              background: `${COLORS.success}14`,
+              fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5,
             }}>
-              {voucherMsg.text}
-            </p>
+              {topUpResult.booked > 0
+                ? t("credits.topUpBooked")
+                    .replace("{n}", n(topUpResult.booked))
+                    .replace("{rem}", gbp(topUpResult.remainder))
+                : t("credits.topUpRemainder").replace("{rem}", gbp(topUpResult.remainder))}
+            </div>
           )}
         </Card>
       </div>
 
-      {/* ── Refund policy ─────────────────────────────────── */}
-      <Card variant="tinted" style={{ marginBottom: gap + 4 }}>
+      {/* ── Upcoming booked sessions ────────────────────────── */}
+      <UpcomingSessions
+        sessions={upcoming}
+        gbp={gbp}
+        t={t}
+        lang={lang}
+        dir={dir}
+        isD={isD}
+        onCancel={handleCancel}
+      />
+
+      {/* ── Wallet → card refund ────────────────────────────── */}
+      <Card variant="tinted" style={{ marginTop: gap + 4, marginBottom: gap + 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <Ic n="info" s={15} c="var(--ds-text-mid)" />
           <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>{t("credits.refundPolicy")}</h3>
@@ -198,29 +276,81 @@ export const Credits = ({
         <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.5, marginBottom: 10 }}>
           {t("credits.refundDetail")}
         </p>
-        <Button variant="ghost2" size="sm">
+        <Button variant="ghost2" size="sm" disabled={balance <= 0} onClick={() => { setRefundDone(false); setShowRefund(true); }} style={{ opacity: balance <= 0 ? 0.45 : 1 }}>
           <Ic n="send" s={12} c="var(--ds-text-mid)" />
-          {t("credits.requestRefund")}
+          {t("credits.refundToCard")}
         </Button>
       </Card>
 
-      {/* ── Transaction history ────────────────────────────── */}
-      <TransactionHistory transactions={transactions} lang={lang} dir={dir} isD={isD} t={t} />
+      {/* ── Refund success message ──────────────────────────── */}
+      {refundDone && (
+        <Card variant="tinted" style={{ marginBottom: gap + 4 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <Ic n="check" s={16} c={COLORS.success} style={{ flexShrink: 0, marginTop: 2 }} />
+            <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", lineHeight: 1.5 }}>
+              {t("credits.refundSuccess").replace("{amt}", gbp(refundDone.returned))}
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* ── Transaction history ─────────────────────────────── */}
+      <TransactionHistory transactions={transactions} gbp={gbp} lang={lang} dir={dir} isD={isD} t={t} />
+
+      {/* ── Wallet → card refund sheet ──────────────────────── */}
+      {showRefund && (
+        <BottomSheet onClose={() => setShowRefund(false)}>
+          <h2 className="ds-heading" style={{ fontSize: 18, color: "var(--ds-text)", marginBottom: 6 }}>
+            {t("credits.refundToCard")}
+          </h2>
+          <p style={{ fontSize: 12, color: "var(--ds-text-mid)", lineHeight: 1.55, marginBottom: 16 }}>
+            {t("credits.refundIntro")}
+          </p>
+
+          <div style={{
+            background: "var(--ds-cream)", borderRadius: RADIUS.md,
+            padding: "12px 14px", marginBottom: 18,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <Row label={t("credits.walletBalance")} value={gbp(balance)} />
+            <Row label={t("credits.stripeFee")} value={"−" + gbp(STRIPE_FEE)} />
+            <div style={{ height: 1, background: "var(--ds-sand)", margin: "2px 0" }} />
+            <Row label={t("credits.youReceive")} value={gbp(Math.max(0, balance - STRIPE_FEE))} bold />
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button variant="primary" onClick={handleWalletRefund} style={{ flex: 1 }}>
+              {t("credits.refundConfirm")}
+            </Button>
+            <Button variant="ghost2" onClick={() => setShowRefund(false)} style={{ flexShrink: 0 }}>
+              {t("credits.refundCancel")}
+            </Button>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 };
 
-// ── Session credit card (teal gradient) with auto-renew toggle ──
-function SessionCreditCard({ credits, autoRenew, onToggleSub, t, isD, dir }) {
+// ── Small label/value row ─────────────────────────────────────
+function Row({ label, value, bold }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 12, color: "var(--ds-text-mid)", fontWeight: bold ? 700 : 500 }}>{label}</span>
+      <span style={{ fontSize: bold ? 15 : 13, color: bold ? COLORS.primary : "var(--ds-text)", fontWeight: 700 }}>{value}</span>
+    </div>
+  );
+}
+
+// ── Wallet hero card (teal gradient) ──────────────────────────
+function WalletCard({ balance, gbp, t, isD, dir }) {
   const isRtl = dir === "rtl";
   return (
     <div style={{
-      flex: 1, minWidth: 0,
       background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 100%)`,
-      borderRadius: RADIUS.lg, padding: isD ? 20 : 16,
+      borderRadius: RADIUS.lg, padding: isD ? 22 : 18,
       color: "white", position: "relative", overflow: "hidden",
     }}>
-      {/* Decorative circle */}
       <div style={{
         position: "absolute", top: -30,
         ...(isRtl ? { left: -30 } : { right: -30 }),
@@ -230,113 +360,169 @@ function SessionCreditCard({ credits, autoRenew, onToggleSub, t, isD, dir }) {
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <div style={{
-            width: isD ? 40 : 34, height: isD ? 40 : 34, borderRadius: 10,
+            width: isD ? 42 : 36, height: isD ? 42 : 36, borderRadius: 10,
             background: "rgba(255,255,255,0.18)", display: "flex",
             alignItems: "center", justifyContent: "center",
           }}>
-            <Ic n="wallet" s={isD ? 20 : 17} c="white" />
+            <Ic n="wallet" s={isD ? 21 : 18} c="white" />
           </div>
           <div>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 1 }}>{t("credits.balance")}</p>
-            <p className="ds-heading" style={{ fontSize: isD ? 30 : 24, color: "white", lineHeight: 1 }}>
-              {credits}
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginBottom: 1 }}>{t("credits.available")}</p>
+            <p className="ds-heading" style={{ fontSize: isD ? 34 : 28, color: "white", lineHeight: 1 }}>
+              {gbp(balance)}
             </p>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 10 }}>
-          {credits} {t("credits.remaining")}
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+          {t("credits.availableHint")}
         </p>
-
-        {/* Auto-renew toggle row */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.15)",
-        }}>
-          <ToggleSwitch checked={autoRenew} onChange={onToggleSub} light />
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", fontWeight: 600 }}>
-            {t("credits.subscriptionToggle")}
-          </span>
-        </div>
       </div>
     </div>
   );
 }
 
-// ── Chat credit gauge card ────────────────────────────────────
-function ChatCreditCard({ chatCredit, sessionCredits, canConvert, onConvert, t, isD }) {
-  const gaugeColor = chatCredit > 50
-    ? COLORS.primary
-    : chatCredit >= 20
-      ? COLORS.accent
-      : COLORS.danger;
-
-  const gaugeWidth = Math.min(100, (chatCredit / 110) * 100);
-
-  const disabledText = sessionCredits === 0
-    ? t("credits.noSessionCredits")
-    : t("credits.convertDisabled");
-
+// ── Active profile panel ──────────────────────────────────────
+function ProfilePanel({ profile, gbp, t, lang, dir, isD, onToggleSub, onRechargeSize }) {
+  const therapist = loc(profile.therapist, lang);
+  const slot = loc(profile.slot, lang);
   return (
-    <Card style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: isD ? 40 : 34, height: isD ? 40 : 34, borderRadius: 10,
-            background: `${gaugeColor}14`, display: "flex",
-            alignItems: "center", justifyContent: "center",
-          }}>
-            <Ic n="zap" s={isD ? 20 : 17} c={gaugeColor} />
+    <Card style={{ marginTop: isD ? 16 : 10 }}>
+      {/* Therapist + slot + price */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ds-text)" }}>{therapist}</p>
+            {profile.premium && <Tag color="accent">{t("credits.premiumTag")}</Tag>}
           </div>
-          <div>
-            <p style={{ fontSize: 11, color: "var(--ds-text-mid)", marginBottom: 1 }}>{t("credits.chatCredit")}</p>
-            <p className="ds-heading" style={{ fontSize: isD ? 30 : 24, color: "var(--ds-text)", lineHeight: 1 }}>
-              {chatCredit}%
-            </p>
-          </div>
+          <p style={{ fontSize: 11, color: "var(--ds-text-mid)", marginTop: 2, display: "flex", alignItems: "center", gap: 5 }}>
+            <Ic n="cal" s={12} c="var(--ds-text-light)" />
+            {slot}
+          </p>
         </div>
-        {chatCredit === 20 && (
-          <Tag color="success">{t("credits.freeGift")}</Tag>
-        )}
+        <div style={{ textAlign: dir === "rtl" ? "left" : "right", flexShrink: 0 }}>
+          <p style={{ fontSize: 16, fontWeight: 700, color: COLORS.primary }}>{gbp(profile.price)}</p>
+          <p style={{ fontSize: 10, color: "var(--ds-text-light)" }}>{t("credits.perSession")}</p>
+        </div>
       </div>
 
-      {/* Fuel gauge bar */}
+      {/* Subscription toggle */}
       <div style={{
-        height: 8, borderRadius: RADIUS.pill,
-        background: "var(--ds-cream)", overflow: "hidden",
-        marginBottom: 4,
+        display: "flex", alignItems: "center", gap: 8,
+        paddingTop: 12, borderTop: "1px solid var(--ds-sand)",
       }}>
-        <div style={{
-          height: "100%", borderRadius: RADIUS.pill,
-          background: gaugeColor,
-          width: `${gaugeWidth}%`,
-          transition: "width 0.4s ease, background 0.4s ease",
-        }} />
+        <ToggleSwitch checked={profile.subscribed} onChange={onToggleSub} />
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: 12, color: "var(--ds-text)", fontWeight: 600 }}>
+            {t("credits.subscriptionToggle")}
+          </span>
+          <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 1 }}>
+            {t("credits.subscriptionHint")}
+          </p>
+        </div>
       </div>
-      <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginBottom: 10 }}>
-        {chatCredit}% {t("credits.chatCreditLeft")}
-      </p>
 
-      {/* Convert button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onConvert}
-        disabled={!canConvert}
-        style={{
-          width: "100%",
-          opacity: canConvert ? 1 : 0.45,
-          cursor: canConvert ? "pointer" : "not-allowed",
-        }}
-      >
-        <Ic n="repeat" s={13} c={canConvert ? COLORS.primary : "var(--ds-text-light)"} />
-        {t("credits.convertCredit")}
-      </Button>
-      {!canConvert && (
-        <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 4, textAlign: "center" }}>
-          {disabledText}
-        </p>
+      {/* When ON: recharge-size selector */}
+      {profile.subscribed && (
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <RechargeOption
+            active={profile.rechargeSize === "single"}
+            title={t("credits.rechargeSingle")}
+            sub={t("credits.rechargeSingleSub")}
+            onClick={() => onRechargeSize("single")}
+          />
+          <RechargeOption
+            active={profile.rechargeSize === "bundle"}
+            title={t("credits.rechargeBundle")}
+            sub={t("credits.rechargeBundleSub")}
+            onClick={() => onRechargeSize("bundle")}
+          />
+        </div>
+      )}
+
+      {/* When OFF: slot-not-reserved warning */}
+      {!profile.subscribed && (
+        <div style={{
+          background: `${COLORS.accent}14`, borderRadius: RADIUS.md,
+          padding: "10px 12px", marginTop: 12,
+          display: "flex", gap: 10, alignItems: "flex-start",
+        }}>
+          <Ic n="alert-triangle" s={16} c={COLORS.accent} style={{ flexShrink: 0, marginTop: 2 }} />
+          <p style={{ fontSize: 11, color: "var(--ds-text-mid)", lineHeight: 1.55 }}>
+            {t("credits.subscriptionWarning")}
+          </p>
+        </div>
       )}
     </Card>
+  );
+}
+
+// ── Recharge-size option pill ─────────────────────────────────
+function RechargeOption({ active, title, sub, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, textAlign: "start", cursor: "pointer", fontFamily: "inherit",
+        padding: "10px 12px", borderRadius: RADIUS.md,
+        border: `1.5px solid ${active ? COLORS.primary : "var(--ds-sand)"}`,
+        background: active ? `${COLORS.primary}10` : "var(--ds-card-bg)",
+        transition: "border 0.15s, background 0.15s",
+      }}
+    >
+      <p style={{ fontSize: 12, fontWeight: 700, color: active ? COLORS.primary : "var(--ds-text)" }}>{title}</p>
+      <p style={{ fontSize: 10, color: "var(--ds-text-light)", marginTop: 2 }}>{sub}</p>
+    </button>
+  );
+}
+
+// ── Upcoming booked sessions ──────────────────────────────────
+function UpcomingSessions({ sessions, gbp, t, lang, dir, isD, onCancel }) {
+  if (!sessions || sessions.length === 0) return null;
+  const sorted = [...sessions].sort((a, b) => new Date(a.dateISO) - new Date(b.dateISO));
+  return (
+    <div style={{ marginTop: isD ? 16 : 12 }}>
+      <h2 className="ds-heading" style={{ fontSize: isD ? 17 : 15, color: "var(--ds-text)", marginBottom: 2 }}>
+        {t("credits.upcomingTitle")}
+      </h2>
+      <p style={{ fontSize: 11, color: "var(--ds-text-mid)", marginBottom: 10 }}>{t("credits.upcomingSub")}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {sorted.map((s) => {
+          const hoursUntil = (new Date(s.dateISO).getTime() - Date.now()) / 3600000;
+          const refundable = hoursUntil > 24;
+          return (
+            <Card key={s.id} variant="sm" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: RADIUS.sm, flexShrink: 0,
+                background: `${COLORS.accent}14`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Ic n="cal" s={16} c={COLORS.accent} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {loc(s.therapist, lang)}
+                </p>
+                <p style={{ fontSize: 10, color: "var(--ds-text-light)" }}>
+                  {formatTxDate(s.dateISO, lang)} · {gbp(s.amount)}
+                </p>
+              </div>
+              <button
+                onClick={() => onCancel(s)}
+                title={refundable ? t("credits.cancelFree") : t("credits.cancelLate")}
+                style={{
+                  background: "none", border: "1px solid var(--ds-sand)", cursor: "pointer",
+                  borderRadius: RADIUS.sm, padding: "5px 10px", flexShrink: 0,
+                  fontFamily: "inherit", fontSize: 11, fontWeight: 600,
+                  color: refundable ? "var(--ds-text-mid)" : COLORS.danger,
+                }}
+              >
+                {t("credits.cancel")}
+              </button>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -373,20 +559,26 @@ function loc(obj, lang) {
 }
 
 const TX_META = {
+  topup:                 { icon: "wallet",   color: COLORS.primary },
   purchase:              { icon: "wallet",   color: COLORS.primary },
   auto_renew:            { icon: "repeat",   color: COLORS.primary },
   booking:               { icon: "cal",      color: COLORS.accent  },
   patient_cancel_refund: { icon: "history",  color: COLORS.success },
   therapist_cancel_refund: { icon: "history", color: COLORS.success },
+  late_cancel:           { icon: "alert-triangle", color: COLORS.danger },
+  refund:                { icon: "history",  color: COLORS.success },
   voucher:               { icon: "gift",     color: COLORS.primary },
 };
 
 const TX_LABEL_KEY = {
-  purchase:              "credits.txPurchase",
+  topup:                 "credits.txTopUp",
+  purchase:              "credits.txTopUp",
   auto_renew:            "credits.txAutoRenew",
   booking:               "credits.txBooking",
   patient_cancel_refund: "credits.txPatientCancelFree",
   therapist_cancel_refund: "credits.txTherapistCancel",
+  late_cancel:           "credits.txLateCancel",
+  refund:                "credits.txRefund",
   voucher:               "credits.txVoucher",
 };
 
@@ -406,8 +598,7 @@ function downloadReceipt(tx, lang) {
     `Date:            ${new Date(tx.date).toLocaleString(lang === "fa" ? "fa-IR" : "en-US")}`,
     `Type:            ${tx.type}`,
     `Description:     ${loc(tx.description, lang)}`,
-    `Credit change:   ${tx.creditDelta > 0 ? "+" : ""}${tx.creditDelta}`,
-    `Balance after:   ${tx.balanceAfter}`,
+    `Amount:          ${tx.creditDelta > 0 ? "+" : ""}£${tx.creditDelta}`,
     "",
     "═══════════════════════════════════════",
     "  Thank you for using Delgoosh!",
@@ -423,7 +614,7 @@ function downloadReceipt(tx, lang) {
   URL.revokeObjectURL(url);
 }
 
-function TransactionHistory({ transactions, lang, dir, isD, t }) {
+function TransactionHistory({ transactions, gbp, lang, dir, isD, t }) {
   const PAGE_SIZE = 5;
   const [expanded, setExpanded] = useState(false);
 
@@ -440,17 +631,13 @@ function TransactionHistory({ transactions, lang, dir, isD, t }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {visible.map((tx) => {
           const meta = TX_META[tx.type] || { icon: "wallet", color: "var(--ds-text-mid)" };
-          const deltaColor = tx.creditDelta > 0
+          const delta = tx.creditDelta || 0;
+          const deltaColor = delta > 0
             ? COLORS.success
-            : tx.creditDelta < 0
+            : delta < 0
               ? COLORS.danger
               : "var(--ds-text-light)";
-          const deltaPrefix = tx.creditDelta > 0 ? "+" : "";
-          const deltaLabel = tx.creditDelta === 0
-            ? t("credits.noRefund")
-            : tx.creditDelta > 0
-              ? `${Math.abs(tx.creditDelta)} ${t("credits.creditAdded")}`
-              : `${Math.abs(tx.creditDelta)} ${t("credits.creditUsed")}`;
+          const deltaPrefix = delta > 0 ? "+" : delta < 0 ? "−" : "";
 
           return (
             <Card key={tx.id} variant="sm" style={{
@@ -468,20 +655,17 @@ function TransactionHistory({ transactions, lang, dir, isD, t }) {
               {/* Description + date */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {tx.description ? loc(tx.description, lang) : t(TX_LABEL_KEY[tx.type] || "credits.txPurchase")}
+                  {tx.description ? loc(tx.description, lang) : t(TX_LABEL_KEY[tx.type] || "credits.txTopUp")}
                 </p>
                 <p style={{ fontSize: 10, color: "var(--ds-text-light)" }}>
                   {formatTxDate(tx.date, lang)}
                 </p>
               </div>
 
-              {/* Delta + balance */}
+              {/* £ delta */}
               <div style={{ textAlign: dir === "rtl" ? "left" : "right", flexShrink: 0 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: deltaColor }}>
-                  {deltaPrefix}{tx.creditDelta}
-                </p>
-                <p style={{ fontSize: 9, color: "var(--ds-text-light)" }}>
-                  {deltaLabel}
+                  {delta === 0 ? "—" : `${deltaPrefix}${gbp(Math.abs(delta))}`}
                 </p>
               </div>
 
@@ -519,23 +703,5 @@ function TransactionHistory({ transactions, lang, dir, isD, t }) {
         </button>
       )}
     </div>
-  );
-}
-
-// ── Buy card ──────────────────────────────────────────────────
-function BuyCard({ title, sub, badge, badgeColor, btnLabel, onBuy }) {
-  return (
-    <Card variant="sm" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--ds-text)" }}>{title}</p>
-          {badge && <Tag color={badgeColor}>{badge}</Tag>}
-        </div>
-        {sub && <p style={{ fontSize: 11, color: "var(--ds-text-light)", marginTop: 1 }}>{sub}</p>}
-      </div>
-      <Button variant="primary" size="sm" style={{ flexShrink: 0 }} onClick={onBuy}>
-        {btnLabel}
-      </Button>
-    </Card>
   );
 }

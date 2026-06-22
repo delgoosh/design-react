@@ -250,45 +250,46 @@ export const SCHEDULE_DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"];
 
 // ── Mock transactions (credit ledger) ────────────────────────
 // TODO(backend-integration): replace with real transaction history from API
+// Wallet ledger — amounts are £ money deltas (real-money model).
 export const MOCK_TRANSACTIONS = [
   {
-    id: "tx6", type: "booking", creditDelta: -1, balanceAfter: 3,
+    id: "tx6", type: "booking", creditDelta: -60, balanceAfter: 42,
     date: "2026-02-28T10:15:00",
-    description: { en: "Session booked — Dr. Mina Hosseini", fa: "رزرو جلسه — دکتر مینا حسینی" },
+    description: { en: "Auto-booked session — Dr. Mina Hosseini", fa: "رزرو خودکار جلسه — دکتر مینا حسینی" },
     therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
     reasonCode: null, receiptAvailable: false,
   },
   {
-    id: "tx5", type: "therapist_cancel_refund", creditDelta: 1, balanceAfter: 4,
+    id: "tx5", type: "therapist_cancel_refund", creditDelta: 60, balanceAfter: 102,
     date: "2026-02-23T16:00:00",
-    description: { en: "Therapist cancelled — credit returned", fa: "لغو توسط درمانگر — بازگشت اعتبار" },
+    description: { en: "Therapist cancelled — refund to wallet", fa: "لغو توسط درمانگر — بازگشت به کیف پول" },
     therapistName: { en: "Dr. Arash Karimi", fa: "دکتر آرش کریمی" },
     reasonCode: "therapist_cancel", receiptAvailable: false,
   },
   {
-    id: "tx4", type: "auto_renew", creditDelta: 1, balanceAfter: 3,
+    id: "tx4", type: "topup", creditDelta: 80, balanceAfter: 42,
     date: "2026-02-22T00:00:00",
-    description: { en: "Auto-renew credit", fa: "اعتبار تمدید خودکار" },
+    description: { en: "Top-up £80 (auto-recharge)", fa: "شارژ £۸۰ (شارژ خودکار)" },
     therapistName: null, reasonCode: null, receiptAvailable: true,
   },
   {
-    id: "tx3", type: "patient_cancel_refund", creditDelta: 1, balanceAfter: 2,
+    id: "tx3", type: "patient_cancel_refund", creditDelta: 60, balanceAfter: 22,
     date: "2026-02-20T11:00:00",
-    description: { en: "Cancellation refund (>24h)", fa: "بازگشت اعتبار لغو (بیش از ۲۴ ساعت)" },
+    description: { en: "Cancellation refund (>24h) → wallet", fa: "بازگشت وجه لغو (بیش از ۲۴ ساعت) ← کیف پول" },
     therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
     reasonCode: "patient_free", receiptAvailable: false,
   },
   {
-    id: "tx2", type: "booking", creditDelta: -1, balanceAfter: 1,
+    id: "tx2", type: "booking", creditDelta: -60, balanceAfter: 0,
     date: "2026-02-18T14:30:00",
-    description: { en: "Session booked — Dr. Mina Hosseini", fa: "رزرو جلسه — دکتر مینا حسینی" },
+    description: { en: "Auto-booked session — Dr. Mina Hosseini", fa: "رزرو خودکار جلسه — دکتر مینا حسینی" },
     therapistName: { en: "Dr. Mina Hosseini", fa: "دکتر مینا حسینی" },
     reasonCode: null, receiptAvailable: false,
   },
   {
-    id: "tx1", type: "purchase", creditDelta: 4, balanceAfter: 4,
+    id: "tx1", type: "topup", creditDelta: 420, balanceAfter: 420,
     date: "2026-02-15T09:00:00",
-    description: { en: "Purchased 4-credit bundle", fa: "خرید بسته ۴ اعتباره" },
+    description: { en: "Top-up £420 (8-for-7 bundle)", fa: "شارژ £۴۲۰ (بستهٔ ۸ به‌ازای ۷)" },
     therapistName: null, reasonCode: null, receiptAvailable: true,
   },
 ];
