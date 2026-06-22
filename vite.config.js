@@ -20,11 +20,25 @@ export default defineConfig(({ mode }) => {
     "process.env.NEXT_PUBLIC_SLOWCOOK_AUTH_BASE": JSON.stringify(env.VITE_SLOWCOOK_AUTH_BASE || ""),
   };
 
+  // Box-hosted review (mock.delgoosh.com → nginx → this vite dev server) sets
+  // these via .env.local; local dev keeps the defaults. Vite 5 host-checks the
+  // dev server, so allowedHosts must include the review subdomain; HMR runs over
+  // wss through Cloudflare:443.
+  const server = {
+    host: env.VITE_DEV_HOST || "127.0.0.1",
+    ...(env.VITE_ALLOWED_HOSTS
+      ? { allowedHosts: env.VITE_ALLOWED_HOSTS.split(",").map((s) => s.trim()) }
+      : {}),
+    ...(env.VITE_HMR_HOST
+      ? { hmr: { host: env.VITE_HMR_HOST, protocol: "wss", clientPort: 443 } }
+      : {}),
+  };
+
   return {
     define: scReviewDefines,
     plugins: [react()],
-    base: "/design-react/",
-    server: { host: "127.0.0.1" },
+    base: env.VITE_BASE || "/design-react/",
+    server,
     build: { target: "esnext" },
     resolve: {
       alias: {
