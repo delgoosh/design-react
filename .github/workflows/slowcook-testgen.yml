@@ -1,0 +1,72 @@
+name: slowcook testgen
+
+# Generates Vitest integration tests whenever a new spec lands on main
+# (specs/story-*.yaml touched in the push). Idempotent — skips specs that
+# already have tests. Output is a draft PR containing the new test files,
+# per-story manifests, and (if the spec supersedes others) removal of
+# the superseded stories' tests.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'specs/story-*.yaml'
+      - 'specs/_index.yaml'
+  # Manual trigger for ad-hoc re-runs (retry after transient failure, or
+  # target a single story while siblings are intentionally handler-only).
+  # Empty input = `testgen --all`; a non-empty value runs `--spec <id>`.
+  # Accepts either the bare id ("005") or the prefixed form ("story-005") —
+  # the CLI normalises a leading "story-" since 0.7.17.
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "Story id to target (e.g. 005 or story-005). Empty = all active specs."
+        required: false
+        default: ""
+
+concurrency:
+  group: slowcook-testgen-main
+  cancel-in-progress: false
+
+jobs:
+  testgen:
+    runs-on: ubuntu-latest
+    permissions:
+      # 0.12.13+ — issues:write so testgen can post the audit-trail
+      # comment + cost marker on the spec's source_issue. Without it,
+      # the comment POST returns 403 and the on-brew-merged rollup
+      # silently undercounts pipeline cost (testgen contribution lost).
+      issues: write
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - name: Configure git identity for agent commits
+        run: |
+          git config user.name  "slowcook-testgen[bot]"
+          git config user.email "slowcook-testgen@users.noreply.github.com"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLOWCOOK_DEBUG: "1"
+          SPEC_INPUT: ${{ inputs.spec }}
+        run: |
+          if [ -n "$SPEC_INPUT" ]; then
+            npx --yes "$SLOWCOOK_CLI" testgen --spec "$SPEC_INPUT"
+          else
+            npx --yes "$SLOWCOOK_CLI" testgen --all
+          fi

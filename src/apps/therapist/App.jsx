@@ -67,6 +67,7 @@ import { Resources } from "./screens/Resources.jsx";
 import { Calendar }  from "./screens/Calendar.jsx";
 import { Earnings }  from "./screens/Earnings.jsx";
 import { Profile }   from "./screens/Profile.jsx";
+import { Premium }   from "./screens/Premium.jsx";
 import { Support }   from "./screens/Support.jsx";
 
 const NAV_ITEMS = (t) => [
@@ -76,6 +77,7 @@ const NAV_ITEMS = (t) => [
   { id: "calendar",  icon: "cal",     label: t("nav.calendar"),  badge: null },
   { id: "earnings",  icon: "money",   label: t("nav.earnings"),  badge: null },
   { id: "profile",   icon: "user",    label: t("nav.profile"),   badge: null },
+  { id: "premium",   icon: "star",    label: t("nav.premium"),   badge: null },
   { id: "support",   icon: "support", label: t("nav.support"),   badge: "1"  },
 ];
 
@@ -89,6 +91,7 @@ const SCREENS = {
   calendar:  Calendar,
   earnings:  Earnings,
   profile:   Profile,
+  premium:   Premium,
   support:   Support,
 };
 

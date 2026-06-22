@@ -1,0 +1,38 @@
+name: slowcook — spec merged
+
+# Transitions source-issue labels from `spec-submitted` → `spec-ready` when
+# a spec PR merges. Detects spec PRs by the `slowcook-spec` label.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  transition:
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'slowcook-spec')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Transition labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes "$SLOWCOOK_CLI" on-spec-merged --pr ${{ github.event.pull_request.number }}

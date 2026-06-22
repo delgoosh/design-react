@@ -1,0 +1,40 @@
+name: slowcook eye cleanup
+
+# design #8 — trigger-based eye-artifact cleanup. When a PR closes (merged or
+# not), delete its full-res eye render/snapshot artifacts. The review thumbnail
+# lives in the PR comment + the eye-review branch, so nothing reviewable is
+# lost; full renders regenerate from the mock at the merged SHA. Artifacts are
+# uploaded by slowcook-acceptance as `eye-pr-<N>-<viewport>-<scheme>`.
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to clean up"
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete eye artifacts for this PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          prefix="eye-pr-${PR}-"
+          echo "Deleting eye artifacts with prefix ${prefix}"
+          gh api --paginate "repos/${REPO}/actions/artifacts" \
+            --jq ".artifacts[] | select(.name | startswith(\"${prefix}\")) | .id" \
+          | while read -r id; do
+              echo "  rm artifact ${id}"
+              gh api -X DELETE "repos/${REPO}/actions/artifacts/${id}" || true
+            done

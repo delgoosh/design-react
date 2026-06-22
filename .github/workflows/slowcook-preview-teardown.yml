@@ -1,0 +1,76 @@
+name: slowcook preview teardown
+
+# 0.16.0-alpha.5 — SSH preview teardown. Fires when a slowcook-mockup
+# PR closes. Removes the per-PR container + staging dir on the box;
+# updates the preview comment to reflect the teardown.
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to teardown (manual override)"
+        required: true
+        type: string
+      prune_image:
+        description: "Also docker rmi the per-PR image"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: slowcook-preview-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  teardown:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'slowcook-mockup')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Stage SSH private key
+        env:
+          SLOWCOOK_PREVIEW_SSH_KEY: ${{ secrets.SLOWCOOK_PREVIEW_SSH_KEY }}
+        run: |
+          set -eu
+          if [ -z "${SLOWCOOK_PREVIEW_SSH_KEY:-}" ]; then
+            echo "::warning::SLOWCOOK_PREVIEW_SSH_KEY secret is not set; skipping teardown."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SLOWCOOK_PREVIEW_SSH_KEY" > ~/.ssh/id_slowcook_preview
+          chmod 600 ~/.ssh/id_slowcook_preview
+          echo "SLOWCOOK_PREVIEW_SSH_KEY_PATH=$HOME/.ssh/id_slowcook_preview" >> $GITHUB_ENV
+
+      - name: Teardown preview
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          PRUNE_IMAGE: ${{ github.event.inputs.prune_image || 'false' }}
+        run: |
+          set -eu
+          ARGS="--pr $PR_NUMBER"
+          if [ "$PRUNE_IMAGE" = "true" ]; then
+            ARGS="$ARGS --prune-image"
+          fi
+          npx --yes "$SLOWCOOK_CLI" preview teardown $ARGS

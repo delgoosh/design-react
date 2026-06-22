@@ -1,0 +1,48 @@
+name: slowcook spec validate
+
+# 0.19.4-α (sc#146 finding 2)
+# Re-runs spec validators on PRs that touch specs/story-*.yaml. Refine
+# runs the same lints in-process when it emits a spec; amendment
+# commits bypass refine, so they bypass the lint too. This workflow
+# closes that gap.
+
+on:
+  pull_request:
+    paths:
+      - "specs/story-*.yaml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Collect changed spec files
+        id: changed
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          mapfile -t FILES < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA" | grep -E '^specs/story-.*\.yaml$' || true)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "files=" >> "$GITHUB_OUTPUT"
+          else
+            printf 'files=%s\n' "${FILES[*]}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: slowcook check spec
+        if: steps.changed.outputs.files != ''
+        run: npx --yes "$SLOWCOOK_CLI" check spec ${{ steps.changed.outputs.files }}

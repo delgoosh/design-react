@@ -1,0 +1,64 @@
+name: slowcook chef
+
+# 0.13.0-alpha.5c — pipeline orchestrator. Fires automatically when
+# check_suite completes with a non-success conclusion on a slowcook-bot
+# PR (head ref starts with `slowcook/`). Chef reads the PR + check
+# status, classifies the failure (self-conflict / self-fail /
+# external-fail / infra-fail), and acts.
+
+on:
+  check_suite:
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to process (manual override)"
+        required: true
+        type: string
+
+concurrency:
+  group: slowcook-chef-${{ github.event.check_suite.pull_requests[0].number || github.event.inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  chef:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.check_suite.conclusion != 'success' &&
+        github.event.check_suite.conclusion != null &&
+        github.event.check_suite.pull_requests[0] != null &&
+        startsWith(github.event.check_suite.head_branch, 'slowcook/')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      issues: write
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve slowcook CLI pin
+        # Single source of truth: .brewing/slowcook-cli-version. Bump by
+        # editing that one file; every workflow picks it up at run time.
+        run: echo "SLOWCOOK_CLI=@slowcook-ai/cli@$(cat .brewing/slowcook-cli-version | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - name: Configure git identity for chef commits
+        run: |
+          git config user.name  "slowcook-chef[bot]"
+          git config user.email "slowcook-chef@users.noreply.github.com"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run chef
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.check_suite.pull_requests[0].number || github.event.inputs.pr }}
+        run: |
+          set -eu
+          npx --yes "$SLOWCOOK_CLI" chef --pr "$PR_NUMBER"

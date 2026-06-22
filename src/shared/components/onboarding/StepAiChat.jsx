@@ -14,6 +14,7 @@ const TYPING_DELAY = 1500; // ms
 
 export const StepAiChat = ({ role, onNext, onBack }) => {
   const { lang, dir, t } = useLang();
+  const [showIntro, setShowIntro] = useState(true);  // intro card before chat starts
   const [messages, setMessages] = useState([]);      // {role, text}
   const [scriptIdx, setScriptIdx] = useState(0);     // next AI message index to send
   const [typing, setTyping] = useState(false);
@@ -48,13 +49,14 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
     }, TYPING_DELAY);
   };
 
-  // Start conversation on mount (guard prevents StrictMode double-fire)
+  // Start conversation only after user dismisses intro
   useEffect(() => {
+    if (showIntro) return;
     if (initRef.current) return;
     initRef.current = true;
     sendAiMessage(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showIntro]);
 
   // Handle user reply
   const handleSend = () => {
@@ -74,6 +76,64 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
   };
 
   const isRtl = dir === "rtl";
+
+  // ── Intro screen ─────────────────────────────────────────────
+  if (showIntro) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 24, direction: dir }}>
+        {/* Bot icon */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: "var(--ds-primary, #4a9d8e)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 12px",
+          }}>
+            <Ic n="bot" s={32} c="#fff" />
+          </div>
+          <h2 className="ds-heading" style={{ fontSize: 22, color: "var(--ds-text)", marginBottom: 6 }}>
+            {isRtl ? "گفتگو با هوش مصنوعی دلگوش" : "Chat with Delgoosh AI"}
+          </h2>
+        </div>
+
+        {/* Explanation card */}
+        <div style={{
+          background: "var(--ds-cream, #edf7f5)", borderRadius: 12,
+          padding: "16px 18px", fontSize: 14, color: "var(--ds-text)",
+          lineHeight: 1.7, direction: dir,
+        }}>
+          {isRtl
+            ? "هوش مصنوعی دلگوش می‌خواهد چند سؤال از شما بپرسد تا اطلاعات بیشتری درباره نیازها و وضعیت شما جمع‌آوری کند. این به ما کمک می‌کند بهترین درمانگر را برای شما پیدا کنیم."
+            : "Delgoosh AI would like to ask you a few questions to better understand your needs. This helps us find the therapist who is the best match for you."}
+        </div>
+
+        <div style={{
+          background: "var(--ds-card-bg, #fff)", border: "1.5px solid var(--ds-border, #d4e5e1)",
+          borderRadius: 12, padding: "14px 18px", fontSize: 13,
+          color: "var(--ds-text-mid)", lineHeight: 1.6, direction: dir,
+        }}>
+          {isRtl
+            ? "می‌توانید این مرحله را رد کنید. در این صورت، بر اساس پاسخ‌هایی که تا اینجا دادید، بهترین تطابق ممکن را برای شما پیدا می‌کنیم."
+            : "You can skip this step at any time. We'll still match you with the best available therapist based on your questionnaire answers."}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Button variant="ghost2" onClick={onNext} style={{ flex: 1 }}>
+            {isRtl ? "رد کردن" : "Skip"}
+          </Button>
+          <Button variant="primary" onClick={() => setShowIntro(false)} style={{ flex: 2 }}>
+            {isRtl ? "شروع گفتگو" : "Start chat"}
+          </Button>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Button variant="ghost2" onClick={onBack} style={{ flex: 1 }}>
+            {t("onboarding.back")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
@@ -138,14 +198,18 @@ export const StepAiChat = ({ role, onNext, onBack }) => {
         </div>
       )}
 
-      {/* Navigation (show Next only after chat finishes) */}
+      {/* Navigation — Skip always visible; Next prominent after chat finishes */}
       <div style={{ display: "flex", gap: 10 }}>
         <Button variant="ghost2" onClick={onBack} style={{ flex: 1 }}>
           {t("onboarding.back")}
         </Button>
-        {chatDone && (
+        {chatDone ? (
           <Button variant="primary" onClick={onNext} style={{ flex: 2 }}>
             {t("onboarding.next")}
+          </Button>
+        ) : (
+          <Button variant="ghost2" onClick={onNext} style={{ flex: 2 }}>
+            {isRtl ? "رد کردن و ادامه" : "Skip & continue"}
           </Button>
         )}
       </div>

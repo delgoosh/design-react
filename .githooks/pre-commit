@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# slowcook pre-commit hook
+#
+# Keeps .brewing/code-map.{json,md} fresh on disk so brew agents and
+# `slowcook map check` see the up-to-date snapshot when they run.
+#
+# As of 0.12.4: code-map files are NOT tracked in git. Committing them
+# produced merge conflicts on every parallel PR (each brew regenerates
+# → branches diverge on the same derived file). The hook regenerates
+# locally; brew/CI workflows regenerate at workflow start. The file
+# never enters git history.
+#
+# Activate once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass temporarily:  git commit --no-verify
+
+set -eu
+
+PIN_FILE=".brewing/slowcook-cli-version"
+if [ ! -f "$PIN_FILE" ]; then
+  echo "slowcook pre-commit: missing $PIN_FILE, skipping map regen" >&2
+  exit 0
+fi
+CLI_PIN="$(tr -d '[:space:]' < "$PIN_FILE")"
+
+STAGED_SRC=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^src/.*\.(ts|tsx)$' || true)
+if [ -z "$STAGED_SRC" ]; then
+  exit 0
+fi
+
+echo "slowcook pre-commit: regenerating code map (staged src/ changes detected)" >&2
+if ! npx --yes "@slowcook-ai/cli@$CLI_PIN" map generate >/dev/null 2>&1; then
+  echo "slowcook pre-commit: map generate FAILED — commit aborted. Run 'npx slowcook map generate' manually to see the error." >&2
+  exit 1
+fi
+
+# Map files are gitignored — no `git add`. The fresh regen sits on
+# disk for tools/agents; the committed state never includes derived data.
+
+exit 0
